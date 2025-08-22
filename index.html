@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thermal–Gas Line Encroachment Assessment Tool</title>
+  <link rel="stylesheet" href="index.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+  <script type="importmap">
+    {
+      "imports": {
+        "@google/genai": "https://esm.sh/@google/genai@^0.7.0"
+      }
+    }
+  </script>
+  <script type="module" src="index.tsx" defer></script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+  <div id="root">
+    <header class="app-header">
+      <h1>Thermal–Gas Line Encroachment Assessment Tool</h1>
+      <p class="subtitle">Rev-2.0, By Tim Bickford</p>
+    </header>
+    <main>
+      <form class="project-info-form" onsubmit="return false;">
+        <div class="tab-nav">
+          <button type="button" class="tab-button active" data-tab="about">About</button>
+          <button type="button" class="tab-button" data-tab="instructions">Instructions</button>
+          <button type="button" class="tab-button" data-tab="evaluation">Evaluation Information</button>
+          <button type="button" class="tab-button" data-tab="data">Heat Source Data</button>
+          <button type="button" class="tab-button" data-tab="gas">Gas Line Data</button>
+          <button type="button" class="tab-button" data-tab="soil">Soil Data</button>
+          <button type="button" class="tab-button" data-tab="field-visit">Field Visit</button>
+          <button type="button" class="tab-button" data-tab="calculation">Calculation</button>
+          <button type="button" class="tab-button" data-tab="recommendations">Recommendations</button>
+          <button type="button" class="tab-button" data-tab="final-report">Final Report</button>
+          <button type="button" class="tab-button" data-tab="latex">Latex Report</button>
+          <button type="button" class="tab-button" data-tab="assessment-form">Assessment Form</button>
+          <button type="button" class="tab-button" data-tab="admin">Admin Login</button>
+          <button type="button" class="tab-button" data-tab="heat-trans-theory">Heat Trans Theory</button>
+        </div>
+
+        <div class="tab-content">
+          <div id="about" class="tab-panel active">
+            <h2 class="form-section-header">About This Tool</h2>
+            <p class="about-text">
+              The primary purpose of this tool is to evaluate heat transfer that will potentially impact existing or proposed gas lines in proximity to below-ground heat sources, such as steam, hot water, or superheated hot water lines.
+            </p>
+          </div>
+
+          <div id="instructions" class="tab-panel">
+            <h2 class="form-section-header">How to Use This Tool</h2>
+            <p class="about-text">This guide provides detailed instructions for completing a comprehensive Thermal–Gas Encroachment Assessment. Following these steps will ensure accurate calculations and a well-documented report.</p>
+
+            <h3>Before You Begin</h3>
+            <ul>
+                <li><strong>Gather Information:</strong> Collect as much data as possible before starting. This includes as-built drawings, operating specifications for the heat source, gas line records, soil survey maps, and any previous field observations.</li>
+                <li><strong>Understand Data Quality:</strong> Many fields allow you to specify if the data is "Actual," "Assumed," or "Unknown." Use these qualifiers accurately. They are critical for understanding the confidence level of the final results and will be reflected in the reports.</li>
+            </ul>
+          
+            <h3>Step 1: Enter All Known Data</h3>
+            <p>Navigate through the data entry tabs sequentially. The more complete and accurate the data, the more reliable the assessment will be.</p>
+            <ul>
+              <li><strong>Evaluation Information:</strong> Fill in the administrative details of the assessment. This includes the project name, location, date, and the names of all personnel involved. A clear project description is essential for context.</li>
+              <li><strong>Heat Source Data:</strong> Document everything about the heat-producing line. This includes its type (steam, hot water), operator contact details, operating temperature and pressure, age, pipe material, dimensions, and insulation details.</li>
+              <li><strong>Gas Line Data:</strong> Provide detailed information about the gas pipeline being assessed. This includes its operator, material (e.g., plastic, coated steel), dimensions, pressure, and its geometric relationship (orientation and distance) to the heat source.</li>
+              <li><strong>Soil Data:</strong> Define the thermal environment. Select the native soil type, which auto-populates a standard thermal conductivity value that you can override if you have more specific data. Document moisture content and average surface temperature. Detail any special bedding material (like sand) used for either pipeline.</li>
+              <li><strong>Field Visit:</strong> Record on-site findings. Document the date of the visit, personnel present, weather conditions, and crucial observations like visible signs of heat loss (melted snow, stressed vegetation), surface conditions, and proximity to other utilities.</li>
+            </ul>
+          
+            <h3>Step 2: Perform the Calculation</h3>
+            <p>Once all data has been entered, navigate to the <strong>Calculation</strong> tab. This tab serves two purposes:</p>
+            <ol>
+              <li><strong>Review Your Inputs:</strong> First, it presents a complete, read-only summary of all the data you entered. Carefully review this summary to ensure everything is correct before proceeding.</li>
+              <li><strong>Run the Analysis:</strong> Click the <strong>"Calculate Temperature at Gas Line"</strong> button. The tool will perform the heat transfer calculations based on your inputs. The results will appear below the button, showing the calculated gas line temperature, the temperature rise above the ambient ground, and other key thermal metrics.</li>
+            </ol>
+            <p><strong>Important:</strong> The tool will display a prominent warning if the calculated temperature exceeds the material-specific allowable limits for the gas pipe or its coating. For plastic pipes, a conservative operational limit of 70°F is used for the primary warning to ensure long-term safety.</p>
+
+            <h3>Step 3: Add Actionable Recommendations</h3>
+            <p>Go to the <strong>Recommendations</strong> tab. Based on the calculation results and your overall assessment, add specific, actionable recommendations. You can add as many as needed. These could include recommendations for monitoring, mitigation (e.g., installing a heat shield), further investigation, or changes to operational procedures. These user-defined recommendations are a critical part of the final report.</p>
+          
+            <h3>Step 4: Generate Reports</h3>
+            <p>The tool provides several reporting options to document and communicate your findings:</p>
+            <ul>
+              <li><strong>Final Report:</strong> <em>(Admin access required)</em> This is the most comprehensive output. It guides you through a series of contextual questions and then generates a formal, multi-section engineering report. This report synthesizes all input data, calculation results, risk analysis based on your answers, and your specific recommendations into a professional, readable format.</li>
+              <li><strong>Latex Report:</strong> For users who need to incorporate the findings into formal scientific or engineering documents, this tab provides a complete summary report formatted in LaTeX code. You can copy this code and paste it into any LaTeX editor.</li>
+              <li><strong>Assessment Form:</strong> This tab provides a clean, printable summary of all the data you entered. It is ideal for archiving, internal reviews, or as an appendix to other documents.</li>
+            </ul>
+          
+            <h3>Step 5: Save and Load Your Work</h3>
+            <p>Use the buttons at the bottom of the form to manage your assessment files.</p>
+            <ul>
+              <li><strong>Save Assessment:</strong> This downloads a single <code>.json</code> file containing all your entered data, questionnaire answers, and the generated final report. This allows you to archive your exact state of work.</li>
+              <li><strong>Load Assessment:</strong> This allows you to select a previously saved <code>.json</code> file, which will repopulate the entire form and all its fields, enabling you to continue a previous assessment.</li>
+            </ul>
+          </div>
+
+          <div id="evaluation" class="tab-panel">
+            <div class="form-group">
+              <label for="date">Date:</label>
+              <input type="date" id="date" name="date" required>
+            </div>
+            <div class="form-group">
+              <label for="numEvaluators">Number of Evaluators:</label>
+              <select id="numEvaluators" name="numEvaluators">
+                <option value="1" selected>1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="evaluatorNamesContainer">Evaluator Name(s):</label>
+              <div id="evaluatorNamesContainer">
+                <!-- Dynamic inputs will be generated here -->
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="engineerName">Engineer’s Name:</label>
+              <input type="text" id="engineerName" name="engineerName" placeholder="Enter name">
+            </div>
+            <div class="form-group">
+              <label for="projectName">Project Name:</label>
+              <input type="text" id="projectName" name="projectName" placeholder="Enter project name">
+            </div>
+            <div class="form-group">
+              <label for="projectLocation">Project Location:</label>
+              <input type="text" id="projectLocation" name="projectLocation" placeholder="Enter location">
+            </div>
+            <div class="form-group">
+              <label for="projectDescription">Project Description:</label>
+              <div class="textarea-wrapper">
+                <textarea id="projectDescription" name="projectDescription" rows="4" placeholder="Describe the project..."></textarea>
+                <button type="button" id="rewordProjectDescription" class="reword-button hidden" aria-label="Reword Project Description">Reword</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="data" class="tab-panel">
+            <h2 id="heatSourceHeader" class="form-section-header">Heat Source Data</h2>
+            <div class="form-group">
+              <label class="form-label">Buried Heat Source Type:</label>
+              <div class="radio-group">
+                <div class="radio-option">
+                  <input type="radio" id="steamLine" name="heatSourceType" value="steam" checked>
+                  <label for="steamLine">Steam Line</label>
+                </div>
+                <div class="radio-option">
+                  <input type="radio" id="hotWaterLine" name="heatSourceType" value="hotWater">
+                  <label for="hotWaterLine">Hot Water Line</label>
+                </div>
+                <div class="radio-option">
+                  <input type="radio" id="superHeatedHotWaterLine" name="heatSourceType" value="superHeatedHotWater">
+                  <label for="superHeatedHotWaterLine">Super Heated Hot Water Line</label>
+                </div>
+                <div class="radio-option">
+                  <input type="radio" id="other" name="heatSourceType" value="other">
+                  <label for="other">Other</label>
+                </div>
+              </div>
+              <div id="customHeatSourceWrapper" class="form-group hidden">
+                <label for="customHeatSourceType">Specify Other Heat Source:</label>
+                <input type="text" id="customHeatSourceType" name="customHeatSourceType" placeholder="Enter heat source type">
+              </div>
+            </div>
+
+            <div id="conditionalFields" class="hidden">
+              <div class="form-group">
+                <label for="operatorName" id="operatorNameLabel">Heat Source - Name of Individual(s) Providing Data:</label>
+                <input type="text" id="operatorName" name="operatorName" placeholder="Enter name of individual">
+              </div>
+              <div class="form-group">
+                <label for="operatorCompanyName" id="operatorCompanyNameLabel">Heat Source - Operator Company Name:</label>
+                <input type="text" id="operatorCompanyName" name="operatorCompanyName" placeholder="Enter company name">
+              </div>
+              <div class="form-group">
+                <label for="operatorCompanyAddress" id="operatorCompanyAddressLabel">Heat Source - Operating Company Address:</label>
+                <input type="text" id="operatorCompanyAddress" name="operatorCompanyAddress" placeholder="Enter company address">
+              </div>
+              <div class="form-group">
+                <label for="operatorContactInfo" id="operatorContactInfoLabel">Heat Source - Contact Info (Phone or Email):</label>
+                <input type="text" id="operatorContactInfo" name="operatorContactInfo" placeholder="Enter phone or email">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Has the heat source line operator Registered Assets with 811 "DigSafe"?</label>
+                <div class="radio-group horizontal">
+                  <div class="radio-option">
+                    <input type="radio" id="registered811Yes" name="isRegistered811" value="yes">
+                    <label for="registered811Yes">Yes</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="registered811No" name="isRegistered811" value="no">
+                    <label for="registered811No">No</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="registered811Unknown" name="isRegistered811" value="unknown" checked>
+                    <label for="registered811Unknown">Unknown</label>
+                  </div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Confirmation of 811 Registration Status:</label>
+                <div class="radio-group horizontal">
+                  <div class="radio-option">
+                    <input type="radio" id="registered811Confirmed" name="registered811Confirmation" value="confirmed">
+                    <label for="registered811Confirmed">Confirmed with operator</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="registered811Assumed" name="registered811Confirmation" value="assumed">
+                    <label for="registered811Assumed">Assumed</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="registered811ConfirmUnknown" name="registered811Confirmation" value="unknown" checked>
+                    <label for="registered811ConfirmUnknown">Unknown</label>
+                  </div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="confirmationDate" id="confirmationDateLabel">Heat Source Data Confirmation Date:</label>
+                <input type="date" id="confirmationDate" name="confirmationDate">
+              </div>
+              <div class="form-group">
+                <label for="maxTemp" id="maxTempLabel">Max Operating Temp (in Deg F) confirmed by the operator:</label>
+                <div class="radio-group horizontal">
+                  <div class="radio-option">
+                    <input type="radio" id="tempTypeUnknown" name="tempType" value="unknown" checked>
+                    <label for="tempTypeUnknown">Unknown</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="tempTypeActual" name="tempType" value="actual">
+                    <label for="tempTypeActual">Actual</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="tempTypeEstimated" name="tempType" value="estimated">
+                    <label for="tempTypeEstimated">Estimated</label>
+                  </div>
+                </div>
+                <input type="number" id="maxTemp" name="maxTemp" placeholder="Enter temperature in °F">
+              </div>
+              <div class="form-group">
+                <label for="maxPressure" id="maxPressureLabel">Max Operating Pressure in psig:</label>
+                <div class="radio-group horizontal">
+                  <div class="radio-option">
+                    <input type="radio" id="pressureTypeUnknown" name="pressureType" value="unknown" checked>
+                    <label for="pressureTypeUnknown">Unknown</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="pressureTypeActual" name="pressureType" value="actual">
+                    <label for="pressureTypeActual">Actual</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="pressureTypeAssumed" name="pressureType" value="assumed">
+                    <label for="pressureTypeAssumed">Assumed</label>
+                  </div>
+                </div>
+                <input type="number" id="maxPressure" name="maxPressure" placeholder="Enter pressure in psig">
+              </div>
+              <div class="form-group">
+                <label for="heatSourceAge" id="heatSourceAgeLabel">Heat Source Line Age (years):</label>
+                <div class="radio-group horizontal">
+                  <div class="radio-option">
+                    <input type="radio" id="ageTypeUnknown" name="ageType" value="unknown" checked>
+                    <label for="ageTypeUnknown">Unknown</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="ageTypeActual" name="ageType" value="actual">
+                    <label for="ageTypeActual">Actual</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="ageTypeAssumed" name="ageType" value="assumed">
+                    <label for="ageTypeAssumed">Assumed</label>
+                  </div>
+                </div>
+                <input type="number" id="heatSourceAge" name="heatSourceAge" placeholder="Enter age in years" min="0">
+              </div>
+              <div class="form-group">
+                <label for="systemDutyCycle" id="systemDutyCycleLabel">System Duty Cycle / Uptime:</label>
+                <div class="radio-group horizontal">
+                  <div class="radio-option">
+                    <input type="radio" id="dutyCycleTypeUnknown" name="dutyCycleType" value="unknown" checked>
+                    <label for="dutyCycleTypeUnknown">Unknown</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="dutyCycleTypeActual" name="dutyCycleType" value="actual">
+                    <label for="dutyCycleTypeActual">Actual</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="dutyCycleTypeAssumed" name="dutyCycleType" value="assumed">
+                    <label for="dutyCycleTypeAssumed">Assumed</label>
+                  </div>
+                </div>
+                <div class="textarea-wrapper">
+                  <textarea id="systemDutyCycle" name="systemDutyCycle" rows="3" placeholder="e.g., '24/7 continuous', '12 hours/day on weekdays', 'active only during winter months'"></textarea>
+                  <button type="button" id="rewordSystemDutyCycle" class="reword-button hidden" aria-label="Reword System Duty Cycle">Reword</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="pipeCasingInfo" id="casingInfoLabel">Pipe Casing / Conduit Information:</label>
+                <div class="radio-group horizontal">
+                  <div class="radio-option">
+                    <input type="radio" id="casingInfoTypeUnknown" name="casingInfoType" value="unknown" checked>
+                    <label for="casingInfoTypeUnknown">Unknown</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="casingInfoTypeActual" name="casingInfoType" value="actual">
+                    <label for="casingInfoTypeActual">Actual</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="casingInfoTypeAssumed" name="casingInfoType" value="assumed">
+                    <label for="casingInfoTypeAssumed">Assumed</label>
+                  </div>
+                </div>
+                <div class="textarea-wrapper">
+                  <textarea id="pipeCasingInfo" name="pipeCasingInfo" rows="3" placeholder="Describe casing material, diameter, and what fills the space (e.g., air, insulation)."></textarea>
+                  <button type="button" id="rewordPipeCasingInfo" class="reword-button hidden" aria-label="Reword Pipe Casing Information">Reword</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="heatLossEvidence">Evidence of Heat Loss at the Surface:</label>
+                <div class="form-group-info">
+                  Have any visual indicators of heat loss ever been observed at the ground surface above the heat line's path? Examples include lines of melted snow in winter, unusually dry or yellowed grass in summer, or steam venting from manholes.
+                </div>
+                <div class="radio-group horizontal" style="margin-top: 0.75rem; margin-bottom: 0.5rem;">
+                  <div class="radio-option">
+                    <input type="radio" id="heatLossSourceFieldVisit" name="heatLossEvidenceSource" value="fieldVisit" checked>
+                    <label for="heatLossSourceFieldVisit">Based on Field Visit</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="heatLossSourceOperator" name="heatLossEvidenceSource" value="operatorInfo">
+                    <label for="heatLossSourceOperator">Info From Operator</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="heatLossSourceOther" name="heatLossEvidenceSource" value="other">
+                    <label for="heatLossSourceOther">Other</label>
+                  </div>
+                </div>
+                <div id="customHeatLossSourceWrapper" class="form-group hidden">
+                  <label for="customHeatLossSource">Specify Other Source:</label>
+                  <input type="text" id="customHeatLossSource" name="customHeatLossSource" placeholder="Enter other source">
+                </div>
+                <div class="textarea-wrapper">
+                  <textarea id="heatLossEvidence" name="heatLossEvidence" rows="3" placeholder="Describe any observations..."></textarea>
+                  <button type="button" id="rewordHeatLossEvidence" class="reword-button hidden" aria-label="Reword Heat Loss Evidence">Reword</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="pipelineDiameter" id="pipelineDiameterLabel">Heat Source Pipeline Nominal Diameter (inches):</label>
+                <div class="radio-group horizontal">
+                  <div class="radio-option">
+                    <input type="radio" id="diameterTypeUnknown" name="diameterType" value="unknown" checked>
+                    <label for="diameterTypeUnknown">Unknown</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="diameterTypeActual" name="diameterType" value="actual">
+                    <label for="diameterTypeActual">Actual</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="diameterTypeAssumed" name="diameterType" value="assumed">
+                    <label for="diameterTypeAssumed">Assumed</label>
+                  </div>
+                </div>
+                <select id="pipelineDiameter" name="pipelineDiameter" required>
+                  <option value="" disabled selected>Select diameter...</option>
+                  <option value="1">1</option>
+                  <option value="1.25">1.25</option>
+                  <option value="1.5">1.5</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                  <option value="6">6</option>
+                  <option value="8">8</option>
+                  <option value="10">10</option>
+                  <option value="12">12</option>
+                  <option value="14">14</option>
+                  <option value="16">16</option>
+                  <option value="18">18</option>
+                  <option value="20">20</option>
+                  <option value="22">22</option>
+                  <option value="24">24</option>
+                  <option value="26">26</option>
+                  <option value="30">30</option>
+                  <option value="36">36</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="pipeMaterial" id="pipeMaterialLabel">Heat Source Pipe Material:</label>
+                <div class="radio-group horizontal">
+                  <div class="radio-option">
+                    <input type="radio" id="materialTypeUnknown" name="materialType" value="unknown" checked>
+                    <label for="materialTypeUnknown">Unknown</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="materialTypeActual" name="materialType" value="actual">
+                    <label for="materialTypeActual">Actual</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="materialTypeAssumed" name="materialType" value="assumed">
+                    <label for="materialTypeAssumed">Assumed</label>
+                  </div>
+                </div>
+                <select id="pipeMaterial" name="pipeMaterial" required>
+                    <option value="" disabled selected>Select material...</option>
+                    <option value="carbon-steel">Carbon Steel (k=26)</option>
+                    <option value="stainless-steel">Stainless Steel (k=9)</option>
+                    <option value="ductile-iron">Ductile Iron (k=32)</option>
+                    <option value="cast-iron">Cast Iron (Legacy) (k=27)</option>
+                    <option value="copper">Copper (k=223)</option>
+                    <option value="pex">PEX (Hot Water Only) (k=0.26)</option>
+                    <option value="pp-r">PP-R / PP-RCT (Hot Water Only) (k=0.22)</option>
+                    <option value="frp">Fiberglass Reinforced Pipe (FRP) (k=0.3)</option>
+                    <option value="other">Other (specify)...</option>
+                </select>
+                <div id="thermalConductivityDisplay" class="form-group-info hidden"></div>
+              </div>
+              <div id="customPipeMaterialWrapper" class="hidden">
+                <div class="form-group">
+                  <label for="customPipeMaterial" id="customPipeMaterialLabel">Custom Pipe Material Name:</label>
+                  <input type="text" id="customPipeMaterial" name="customPipeMaterial" placeholder="Enter material name">
+                </div>
+                <div class="form-group">
+                  <label for="customThermalConductivity" id="customThermalConductivityLabel">Thermal Conductivity (BTU/hr·ft·°F):</label>
+                  <input type="number" id="customThermalConductivity" name="customThermalConductivity" placeholder="Enter value in BTU/hr·ft·°F" step="0.01">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="wallThickness" id="wallThicknessLabel">Heat Source Pipe Wall Thickness (inches):</label>
+                <div class="radio-group horizontal">
+                  <div class="radio-option">
+                    <input type="radio" id="wallThicknessTypeUnknown" name="wallThicknessType" value="unknown" checked>
+                    <label for="wallThicknessTypeUnknown">Unknown</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="wallThicknessTypeActual" name="wallThicknessType" value="actual">
+                    <label for="wallThicknessTypeActual">Actual</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="wallThicknessTypeAssumed" name="wallThicknessType" value="assumed">
+                    <label for="wallThicknessTypeAssumed">Assumed</label>
+                  </div>
+                </div>
+                <select id="wallThickness" name="wallThickness" required disabled>
+                  <option value="" disabled selected>Select diameter first...</option>
+                </select>
+                <div id="customWallThicknessWrapper" class="hidden">
+                  <input type="number" id="customWallThickness" name="customWallThickness" placeholder="Enter custom thickness in inches" step="0.001">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="connectionTypes" id="connectionTypesLabel">Heat source line connection types:</label>
+                <div class="radio-group horizontal">
+                  <div class="radio-option">
+                    <input type="radio" id="connectionTypesTypeUnknown" name="connectionTypesType" value="unknown" checked>
+                    <label for="connectionTypesTypeUnknown">Unknown</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="connectionTypesTypeActual" name="connectionTypesType" value="actual">
+                    <label for="connectionTypesTypeActual">Actual</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="connectionTypesTypeAssumed" name="connectionTypesType" value="assumed">
+                    <label for="connectionTypesTypeAssumed">Assumed</label>
+                  </div>
+                </div>
+                <select id="connectionTypes" name="connectionTypes" multiple required>
+                    <!-- Welded (Primary for Steel - Steam/Hot Water) -->
+                    <option value="butt-welded">Butt-welded (Steel)</option>
+                    <option value="socket-welded">Socket-welded (Steel, typically ≤ 2")</option>
+                    <option value="field-welded-sleeves">Field-welded sleeves/repair clamps (Steel)</option>
+
+                    <!-- Flanged (All materials, for serviceability) -->
+                    <option value="flanged-gasketed">Flanged with Gasket (Steel, Ductile Iron)</option>
+
+                    <!-- Mechanical Joints (Ductile Iron, Steel) -->
+                    <option value="grooved-coupling">Grooved Mechanical Coupling (e.g., Victaulic)</option>
+                    <option value="mechanical-joint-di">Mechanical Joint (MJ) (Ductile Iron)</option>
+                    <option value="push-on-joint-di">Push-on (Tyton®-style) Joint (Ductile Iron)</option>
+                    <option value="restrained-joints">Restrained Joints (e.g., TR-Flex®) (Ductile Iron)</option>
+
+                    <!-- Brazed/Soldered (Copper - Hot Water/Low-Pressure Steam) -->
+                    <option value="brazed">Brazed (Copper)</option>
+                    <option value="soldered">Soldered (Copper - Low-temp Hot Water only)</option>
+
+                    <!-- Plastic Fusion (PP-R - Hot Water) -->
+                    <option value="butt-fusion-ppr">Butt-fusion (PP-R)</option>
+                    <option value="socket-fusion-ppr">Socket-fusion (PP-R)</option>
+
+                    <!-- PEX Systems (Hot Water) -->
+                    <option value="pex-expansion-crimp">Expansion, Crimp, or Clamp Fittings (PEX)</option>
+
+                    <!-- Pre-Insulated Systems -->
+                    <option value="pre-insulated-joint-kit">Pre-insulated Joint Kit (e.g., Heat-Shrink Sleeve, Field Foam)</option>
+                    
+                    <!-- Legacy/Other -->
+                    <option value="threaded-screwed">Threaded/Screwed (Low-pressure/temp applications)</option>
+                    <option value="bell-spigot-legacy">Bell-and-spigot (Lead/Oakum - Legacy Cast Iron)</option>
+                    <option value="other">Other (specify)...</option>
+                </select>
+                <div class="form-group-info">Hold Ctrl (or Cmd on Mac) to select multiple options.</div>
+                <div id="selectedConnectionTypesDisplay" class="hidden"></div>
+                <div id="customConnectionTypesWrapper" class="hidden">
+                  <div class="form-group">
+                    <label for="customConnectionTypes">Custom Connection Types:</label>
+                    <textarea id="customConnectionTypes" name="customConnectionTypes" rows="3" placeholder="Enter custom connection types, one per line..."></textarea>
+                    <div class="form-group-info">Enter each custom connection type on a new line.</div>
+                  </div>
+                </div>
+              </div>
+              <div class="form-group">
+                  <label for="pipeInsulationType" id="pipeInsulationTypeLabel">Heat Source Pipe Insulation Type:</label>
+                  <div class="radio-group horizontal">
+                    <div class="radio-option">
+                      <input type="radio" id="insulationTypeTypeUnknown" name="insulationTypeType" value="unknown" checked>
+                      <label for="insulationTypeTypeUnknown">Unknown</label>
+                    </div>
+                    <div class="radio-option">
+                      <input type="radio" id="insulationTypeTypeActual" name="insulationTypeType" value="actual">
+                      <label for="insulationTypeTypeActual">Actual</label>
+                    </div>
+                    <div class="radio-option">
+                      <input type="radio" id="insulationTypeTypeAssumed" name="insulationTypeType" value="assumed">
+                      <label for="insulationTypeTypeAssumed">Assumed</label>
+                    </div>
+                  </div>
+                  <select id="pipeInsulationType" name="pipeInsulationType" required>
+                      <option value="" disabled selected>Select heat source type first...</option>
+                  </select>
+                  <div id="insulationThermalConductivityDisplay" class="form-group-info hidden"></div>
+              </div>
+              <div class="form-group hidden" id="insulationThicknessWrapper">
+                <label for="insulationThickness" id="insulationThicknessLabel">Heat Source Insulation Thickness (inches):</label>
+                <div class="radio-group horizontal">
+                  <div class="radio-option">
+                    <input type="radio" id="insulationThicknessTypeUnknown" name="insulationThicknessType" value="unknown" checked>
+                    <label for="insulationThicknessTypeUnknown">Unknown</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="insulationThicknessTypeActual" name="insulationThicknessType" value="actual">
+                    <label for="insulationThicknessTypeActual">Actual</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="insulationThicknessTypeAssumed" name="insulationThicknessType" value="assumed">
+                    <label for="insulationThicknessTypeAssumed">Assumed</label>
+                  </div>
+                </div>
+                <input type="number" id="insulationThickness" name="insulationThickness" placeholder="Enter thickness in inches" step="0.1" required>
+              </div>
+              <div id="customPipeInsulationWrapper" class="hidden">
+                  <div class="form-group">
+                      <label for="customPipeInsulation" id="customPipeInsulationLabel">Custom Pipe Insulation Name:</label>
+                      <input type="text" id="customPipeInsulation" name="customPipeInsulation" placeholder="Enter insulation name">
+                  </div>
+                  <div class="form-group">
+                      <label for="customInsulationThermalConductivity" id="customInsulationThermalConductivityLabel">Thermal Conductivity (BTU/hr·ft·°F):</label>
+                      <input type="number" id="customInsulationThermalConductivity" name="customInsulationThermalConductivity" placeholder="Enter value in BTU/hr·ft·°F" step="0.001">
+                  </div>
+              </div>
+              <div class="form-group">
+                <label for="insulationCondition">Known Condition of Insulation:</label>
+                <div class="form-group-info">
+                    Is there any information available on the condition of the pipe's insulation? Is it known or suspected to be degraded, damaged, or water-logged in any areas?
+                </div>
+                <div class="radio-group horizontal" style="margin-top: 0.75rem; margin-bottom: 0.5rem;">
+                  <div class="radio-option">
+                    <input type="radio" id="insulationConditionSourceUnknown" name="insulationConditionSource" value="unknown" checked>
+                    <label for="insulationConditionSourceUnknown">Unknown</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="insulationConditionSourceOperator" name="insulationConditionSource" value="operator">
+                    <label for="insulationConditionSourceOperator">Confirmed by Operator</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="insulationConditionSourceAssumed" name="insulationConditionSource" value="assumed">
+                    <label for="insulationConditionSourceAssumed">Assumed</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="insulationConditionSourceOther" name="insulationConditionSource" value="other">
+                    <label for="insulationConditionSourceOther">Other</label>
+                  </div>
+                </div>
+                <div id="customInsulationConditionSourceWrapper" class="form-group hidden">
+                  <label for="customInsulationConditionSource">Specify Other Source:</label>
+                  <input type="text" id="customInsulationConditionSource" name="customInsulationConditionSource" placeholder="Enter other source">
+                </div>
+                <div class="textarea-wrapper">
+                  <textarea id="insulationCondition" name="insulationCondition" rows="3" placeholder="e.g., 'Insulation is suspected to be water-logged in low-lying areas.'"></textarea>
+                  <button type="button" id="rewordInsulationCondition" class="reword-button hidden" aria-label="Reword Insulation Condition">Reword</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="heatSourceDepth" id="heatSourceDepthLabel">Heat Source Line Depth from Ground Surface to Pipe Centerline (feet):</label>
+                <div class="radio-group horizontal">
+                  <div class="radio-option">
+                    <input type="radio" id="depthTypeUnknown" name="depthType" value="unknown" checked>
+                    <label for="depthTypeUnknown">Unknown</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="depthTypeActual" name="depthType" value="actual">
+                    <label for="depthTypeActual">Actual</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="depthTypeAssumed" name="depthType" value="assumed">
+                    <label for="depthTypeAssumed">Assumed</label>
+                  </div>
+                </div>
+                <input type="number" id="heatSourceDepth" name="heatSourceDepth" placeholder="Enter depth in feet" step="0.1">
+              </div>
+              <div class="form-group">
+                <label for="additionalInfo" id="additionalInfoLabel">Heat Source - Additional Information Provided by the Operator:</label>
+                <div class="textarea-wrapper">
+                  <textarea id="additionalInfo" name="additionalInfo" rows="3" placeholder="Enter any additional notes or information..."></textarea>
+                  <button type="button" id="rewordAdditionalInfo" class="reword-button hidden" aria-label="Reword Additional Information">Reword</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="gas" class="tab-panel">
+            <h2 class="form-section-header">Gas Line Data</h2>
+            <div class="form-group">
+              <label for="gasOperatorName">Gas Line Operator Name:</label>
+              <select id="gasOperatorName" name="gasOperatorName" required>
+                <option value="Unitil" selected>Unitil</option>
+                <option value="UNH-Master Meter Systems">UNH-Master Meter Systems</option>
+                <option value="other">Other (specify)...</option>
+              </select>
+            </div>
+            <div id="customGasOperatorNameWrapper" class="form-group hidden">
+              <label for="customGasOperatorName">Specify Operator Name:</label>
+              <input type="text" id="customGasOperatorName" name="customGasOperatorName" placeholder="Enter operator's name">
+            </div>
+            <div class="form-group">
+              <label for="gasDoc">Distribution Operating Company (DOC):</label>
+              <select id="gasDoc" name="gasDoc" required>
+                <option value="" disabled selected>Select DOC...</option>
+                <option value="nu-nh">NU-NH</option>
+                <option value="nu-me">NU-ME</option>
+                <option value="bng">BNG</option>
+                <option value="mng">MNG</option>
+                <option value="fge">FG&E</option>
+                <option value="gsgt">GSGT</option>
+                <option value="unh">UNH-Gas Distribution System</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="gasMaxPressure">Gas Line Max Operating Pressure in psig:</label>
+              <input type="number" id="gasMaxPressure" name="gasMaxPressure" placeholder="Enter pressure in psig" min="0" max="750">
+              <div class="form-group-info">Maximum allowable pressure is 750 psig.</div>
+            </div>
+            <div class="form-group">
+              <label for="gasInstallationYear">Installation Year / Vintage:</label>
+              <input type="number" id="gasInstallationYear" name="gasInstallationYear" placeholder="e.g., 1985" min="1900" max="2100">
+            </div>
+            <div class="form-group">
+              <label for="gasPipelineDiameter">Gas Line Pipeline Nominal Diameter (inches):</label>
+              <select id="gasPipelineDiameter" name="gasPipelineDiameter" required>
+                <option value="" disabled selected>Select diameter...</option>
+                <option value="1">1</option>
+                <option value="1.25">1.25</option>
+                <option value="1.5">1.5</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="8">8</option>
+                <option value="10">10</option>
+                <option value="12">12</option>
+                <option value="14">14</option>
+                <option value="16">16</option>
+                <option value="18">18</option>
+                <option value="20">20</option>
+                <option value="22">22</option>
+                <option value="24">24</option>
+                <option value="26">26</option>
+                <option value="30">30</option>
+                <option value="36">36</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Pipe Sizing Standard:</label>
+              <div class="radio-group horizontal">
+                <div class="radio-option">
+                  <input type="radio" id="sizingIps" name="gasPipeSizingStandard" value="ips" checked>
+                  <label for="sizingIps">IPS (Iron Pipe Size)</label>
+                </div>
+                <div class="radio-option">
+                  <input type="radio" id="sizingCts" name="gasPipeSizingStandard" value="cts">
+                  <label for="sizingCts">CTS (Copper Tube Size)</label>
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="gasPipeMaterial">Gas Pipeline Material:</label>
+              <select id="gasPipeMaterial" name="gasPipeMaterial" required>
+                  <option value="" disabled selected>Select material...</option>
+                  <option value="hdpe" data-continuous-limit="140" data-utility-cap="120" data-notes="Creep rupture strength declines quickly above 140°F; apply derating above 73°F.">HDPE</option>
+                  <option value="mdpe" data-continuous-limit="140" data-utility-cap="120" data-notes="Similar thermal limits to HDPE; temperature derates allowable pressure.">MDPE</option>
+                  <option value="aldyl" data-continuous-limit="140" data-utility-cap="100" data-notes="Vintage Aldyl-A should be limited to <100°F; operating above this increases slow crack growth risk and accelerates defect growth.">Aldyl-A (Legacy)</option>
+                  <option value="pvc">PVC</option>
+                  <option value="coated-steel-protected">Coated Steel (Protected)</option>
+                  <option value="coated-steel-unprotected">Coated Steel (Unprotected)</option>
+                  <option value="bare-steel">Bare Steel</option>
+                  <option value="other">Other (specify)...</option>
+              </select>
+              <div id="gasThermalConductivityDisplay" class="form-group-info hidden"></div>
+            </div>
+            <div id="gasWallThicknessGroup" class="form-group hidden">
+              <label for="gasWallThickness">Gas Pipe Wall Thickness (inches):</label>
+              <select id="gasWallThickness" name="gasWallThickness" disabled>
+                <option value="" disabled selected>Select diameter first...</option>
+              </select>
+              <div id="customGasWallThicknessWrapper" class="hidden">
+                <input type="number" id="customGasWallThickness" name="customGasWallThickness" placeholder="Enter custom thickness in inches" step="0.001">
+              </div>
+            </div>
+            <div id="gasSdrGroup" class="form-group hidden">
+              <label for="gasSdr">Gas Pipe SDR (Standard Dimension Ratio):</label>
+              <select id="gasSdr" name="gasSdr">
+                <option value="" disabled selected>Select SDR...</option>
+                <option value="11">SDR 11</option>
+                <option value="13.5">SDR 13.5</option>
+                <option value="17">SDR 17</option>
+                <option value="other">Other</option>
+              </select>
+              <div id="customGasSdrWrapper" class="hidden" style="margin-top: 0.75rem;">
+                 <input type="number" id="customGasSdr" name="customGasSdr" placeholder="Enter custom SDR" step="0.1">
+              </div>
+            </div>
+            <div id="gasCoatingTypeWrapper" class="form-group hidden">
+              <label for="gasCoatingType">Coating Type:</label>
+              <select id="gasCoatingType" name="gasCoatingType">
+                <option value="" disabled selected>Select coating type...</option>
+                <option value="cold-tape-standard" data-max-temp="122">Cold-applied tapes, standard (≤122°F)</option>
+                <option value="coal-tar" data-max-temp="122">Coal-tar enamel / asphaltic (legacy) (122°F)</option>
+                <option value="extruded-pe" data-max-temp="130">Extruded PE ("Yellow Jacket") (130°F)</option>
+                <option value="non-shielding-std" data-max-temp="145">Non-shielding wraps, standard (e.g., RD-6) (145°F)</option>
+                <option value="fbe-standard" data-max-temp="150">Fusion-Bonded Epoxy (FBE), standard (150°F)</option>
+                <option value="3lpe" data-max-temp="176">3-Layer Polyethylene (3LPE) (176°F)</option>
+                <option value="liquid-epoxy" data-max-temp="175">Field-applied liquid epoxies (175°F+)</option>
+                <option value="pritec" data-max-temp="180">PRITEC® / 2-layer PE (180°F)</option>
+                <option value="non-shielding-ht" data-max-temp="190">Non-shielding wraps, high-temp (e.g., RD-6 HT) (190°F)</option>
+                <option value="fbe-high-tg" data-max-temp="200">FBE, high-Tg / thick-film (200°F+)</option>
+                <option value="3lpp" data-max-temp="230">3-Layer Polypropylene (3LPP) (230°F)</option>
+                <option value="other">Other (specify)...</option>
+              </select>
+            </div>
+            <div id="customGasCoatingTypeWrapper" class="form-group hidden">
+              <label for="customGasCoatingType">Specify Coating Type:</label>
+              <input type="text" id="customGasCoatingType" name="customGasCoatingType" placeholder="Enter coating type">
+            </div>
+            <div id="customGasPipeMaterialWrapper" class="hidden">
+              <div class="form-group">
+                <label for="customGasPipeMaterial">Custom Pipe Material Name:</label>
+                <input type="text" id="customGasPipeMaterial" name="customGasPipeMaterial" placeholder="Enter material name">
+              </div>
+              <div class="form-group">
+                <label for="customGasThermalConductivity">Thermal Conductivity (BTU/hr·ft·°F):</label>
+                <input type="number" id="customGasThermalConductivity" name="customGasThermalConductivity" placeholder="Enter value" step="0.01">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Gas Line Orientation to Heat Source:</label>
+              <div class="radio-group">
+                <div class="radio-option">
+                  <input type="radio" id="orientationPerpendicular" name="gasLineOrientation" value="perpendicular" checked>
+                  <label for="orientationPerpendicular">Perpendicular</label>
+                </div>
+                <div class="radio-option">
+                  <input type="radio" id="orientationParallel" name="gasLineOrientation" value="parallel">
+                  <label for="orientationParallel">Parallel</label>
+                </div>
+              </div>
+            </div>
+            <div id="perpendicularCoordinatesWrapper" class="form-group hidden">
+                <label>Coordinates of Intersection Point (DD, WGS84):</label>
+                <div class="form-group-info">
+                    Enter the coordinates in Decimal Degrees format. Example: 42.3601, -71.0589 (Latitude, Longitude).
+                </div>
+                <div class="coordinate-grid">
+                    <label for="latitude">Latitude:</label>
+                    <input type="number" id="latitude" name="latitude" placeholder="e.g., 42.3601" step="any">
+                    <label for="longitude">Longitude:</label>
+                    <input type="number" id="longitude" name="longitude" placeholder="e.g., -71.0589" step="any">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="depthOfBurialGasLine">Depth of Gas Line from Surface to Pipe Centerline (feet):</label>
+                <input type="number" id="depthOfBurialGasLine" name="depthOfBurialGasLine" placeholder="Enter depth in feet" step="0.1">
+            </div>
+            <div id="parallelDistanceWrapper" class="form-group hidden">
+                <label for="parallelDistance">Distance from Heat Source Centerline to Gas Line Centerline (feet):</label>
+                <input type="number" id="parallelDistance" name="parallelDistance" placeholder="Enter distance in feet" step="0.1">
+
+                <label for="parallelLength" style="margin-top: 1rem;">Length of Parallel Section (feet):</label>
+                <input type="number" id="parallelLength" name="parallelLength" placeholder="Enter total length" step="0.1" min="0">
+                
+                <div id="parallelCoordinatesContainer" class="hidden" style="margin-top: 1rem;">
+                  <label>Coordinates of Parallel Section (DD, WGS84):</label>
+                  <div class="form-group-info">
+                      Enter coordinates for the start, end, and every 10 feet along the parallel section. Example: 42.3601, -71.0589 (Latitude, Longitude).
+                  </div>
+                  <div id="parallelCoordinatesWrapper">
+                    <!-- Dynamic inputs will be generated here -->
+                  </div>
+                </div>
+            </div>
+          </div>
+
+          <div id="soil" class="tab-panel">
+            <h2 class="form-section-header">Soil & Bedding Data</h2>
+            <div class="form-group">
+                <label for="soilType">Native Soil Type Classification:</label>
+                <select id="soilType" name="soilType" required>
+                    <option value="" disabled>Select soil type...</option>
+                    <option value="saturated-sand-gravel" data-conductivity="1.50" selected>Saturated Sand and Gravel (1.50 BTU/hr·ft·°F) - Worst Case</option>
+                    <option value="wet-sand" data-conductivity="1.20">Wet Sand (1.20 BTU/hr·ft·°F)</option>
+                    <option value="rock-fill-ledge" data-conductivity="1.20">Rock Fill / Ledge (1.20 BTU/hr·ft·°F)</option>
+                    <option value="crushed-stone-backfill" data-conductivity="1.10">Crushed Stone Backfill (1.10 BTU/hr·ft·°F)</option>
+                    <option value="wet-clay-silt" data-conductivity="0.90">Wet Clay / Silt (0.90 BTU/hr·ft·°F)</option>
+                    <option value="wet-loam" data-conductivity="0.85">Wet Loam (0.85 BTU/hr·ft·°F)</option>
+                    <option value="moist-sand-gravel" data-conductivity="0.80">Moist Sand and Gravel (0.80 BTU/hr·ft·°F)</option>
+                    <option value="flowable-fill-standard" data-conductivity="0.70">Flowable Fill (Standard) (0.70 BTU/hr·ft·°F)</option>
+                    <option value="moist-clay-silt" data-conductivity="0.70">Moist Clay / Silt (0.70 BTU/hr·ft·°F)</option>
+                    <option value="moist-loam" data-conductivity="0.60">Moist Loam (0.60 BTU/hr·ft·°F)</option>
+                    <option value="peat-organic-moist" data-conductivity="0.30">Peat / Organic Soil (Moist) (0.30 BTU/hr·ft·°F)</option>
+                    <option value="flowable-fill-insulating" data-conductivity="0.25">Flowable Fill (Insulating) (0.25 BTU/hr·ft·°F)</option>
+                    <option value="dry-sand-gravel" data-conductivity="0.20">Dry Sand and Gravel (0.20 BTU/hr·ft·°F)</option>
+                    <option value="dry-clay-silt" data-conductivity="0.15">Dry Clay / Silt (0.15 BTU/hr·ft·°F)</option>
+                    <option value="dry-loam" data-conductivity="0.12">Dry Loam (0.12 BTU/hr·ft·°F)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="soilThermalConductivity">Native Soil Thermal Conductivity (BTU/hr·ft·°F):</label>
+                <input type="number" id="soilThermalConductivity" name="soilThermalConductivity" placeholder="Select a soil type above or enter a value" step="0.01">
+                <div class="form-group-info">Value is auto-populated from the selection above but can be manually overridden.</div>
+            </div>
+            <div class="form-group">
+                <label for="soilMoistureContent">Soil Moisture Content (%):</label>
+                <input type="number" id="soilMoistureContent" name="soilMoistureContent" placeholder="Enter percentage" min="0" max="100">
+            </div>
+            <div class="form-group">
+                <label for="groundSurfaceTemperature">Average Ground Surface Temperature (°F):</label>
+                <input type="number" id="groundSurfaceTemperature" name="groundSurfaceTemperature" placeholder="Enter temperature in °F">
+            </div>
+            <div class="form-group">
+              <label>Evidence of water infiltration or frost heave:</label>
+              <div class="radio-group horizontal">
+                <div class="radio-option">
+                  <input type="radio" id="waterInfiltrationYes" name="waterInfiltration" value="yes">
+                  <label for="waterInfiltrationYes">Yes</label>
+                </div>
+                <div class="radio-option">
+                  <input type="radio" id="waterInfiltrationNo" name="waterInfiltration" value="no">
+                  <label for="waterInfiltrationNo">No</label>
+                </div>
+                <div class="radio-option">
+                  <input type="radio" id="waterInfiltrationUnknown" name="waterInfiltration" value="unknown" checked>
+                  <label for="waterInfiltrationUnknown">Unknown</label>
+                </div>
+              </div>
+              <div class="textarea-wrapper" style="margin-top: 0.75rem;">
+                <label for="waterInfiltrationComments" class="sr-only">Comments on water infiltration or frost heave</label>
+                <textarea id="waterInfiltrationComments" name="waterInfiltrationComments" rows="3" placeholder="Add comments..."></textarea>
+              </div>
+            </div>
+
+            <div class="sub-section">
+              <h3 class="sub-section-header">Heat Source Trench Bedding</h3>
+              <div class="form-group">
+                <div class="radio-group horizontal">
+                  <div class="radio-option">
+                    <input type="radio" id="heatSourceBeddingSand" name="heatSourceBeddingType" value="sand">
+                    <label for="heatSourceBeddingSand">Installed with sand bedding</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="heatSourceBeddingUnknown" name="heatSourceBeddingType" value="unknown" checked>
+                    <label for="heatSourceBeddingUnknown">Unknown</label>
+                  </div>
+                </div>
+              </div>
+              <div id="heatSourceBeddingDetailsWrapper" class="hidden">
+                <div class="form-group">
+                  <label>Bedding Dimensions from Pipe Centerline:</label>
+                  <div class="dimension-grid">
+                    <label for="heatSourceBeddingTop">Above (in):</label>
+                    <input type="number" id="heatSourceBeddingTop" name="heatSourceBeddingTop" placeholder="inches" min="0">
+                    <label for="heatSourceBeddingBottom">Below (in):</label>
+                    <input type="number" id="heatSourceBeddingBottom" name="heatSourceBeddingBottom" placeholder="inches" min="0">
+                    <label for="heatSourceBeddingLeft">Left (in):</label>
+                    <input type="number" id="heatSourceBeddingLeft" name="heatSourceBeddingLeft" placeholder="inches" min="0">
+                    <label for="heatSourceBeddingRight">Right (in):</label>
+                    <input type="number" id="heatSourceBeddingRight" name="heatSourceBeddingRight" placeholder="inches" min="0">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Use custom thermal conductivity for sand bedding?</label>
+                  <div class="radio-group horizontal">
+                    <div class="radio-option">
+                      <input type="radio" id="heatSourceBeddingCustomKNo" name="heatSourceBeddingUseCustomK" value="no" checked>
+                      <label for="heatSourceBeddingCustomKNo">No</label>
+                    </div>
+                    <div class="radio-option">
+                      <input type="radio" id="heatSourceBeddingCustomKYes" name="heatSourceBeddingUseCustomK" value="yes">
+                      <label for="heatSourceBeddingCustomKYes">Yes</label>
+                    </div>
+                  </div>
+                  <div id="heatSourceBeddingDefaultKDisplay" class="form-group-info">
+                    Default thermal conductivity for clean dry sand: 0.20 BTU/hr·ft·°F
+                  </div>
+                  <div id="customHeatSourceBeddingKWrapper" class="hidden" style="margin-top: 0.75rem;">
+                    <label for="heatSourceBeddingCustomK">Custom Thermal Conductivity (BTU/hr·ft·°F):</label>
+                    <input type="number" id="heatSourceBeddingCustomK" name="heatSourceBeddingCustomK" placeholder="Enter value" step="0.01">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sub-section">
+              <h3 class="sub-section-header">Gas Line Trench Bedding</h3>
+              <div class="form-group">
+                <div class="radio-group horizontal">
+                  <div class="radio-option">
+                    <input type="radio" id="gasLineBeddingSand" name="gasLineBeddingType" value="sand">
+                    <label for="gasLineBeddingSand">Installed with sand bedding</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="gasLineBeddingUnknown" name="gasLineBeddingType" value="unknown" checked>
+                    <label for="gasLineBeddingUnknown">Unknown</label>
+                  </div>
+                </div>
+              </div>
+              <div id="gasLineBeddingDetailsWrapper" class="hidden">
+                <div class="form-group">
+                  <label>Bedding Dimensions from Pipe Centerline:</label>
+                  <div class="dimension-grid">
+                    <label for="gasBeddingTop">Above (in):</label>
+                    <input type="number" id="gasBeddingTop" name="gasBeddingTop" placeholder="inches" min="0">
+                    <label for="gasBeddingBottom">Below (in):</label>
+                    <input type="number" id="gasBeddingBottom" name="gasBeddingBottom" placeholder="inches" min="0">
+                    <label for="gasBeddingLeft">Left (in):</label>
+                    <input type="number" id="gasBeddingLeft" name="gasBeddingLeft" placeholder="inches" min="0">
+                    <label for="gasBeddingRight">Right (in):</label>
+                    <input type="number" id="gasBeddingRight" name="gasBeddingRight" placeholder="inches" min="0">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Use custom thermal conductivity for sand bedding?</label>
+                  <div class="radio-group horizontal">
+                    <div class="radio-option">
+                      <input type="radio" id="gasBeddingCustomKNo" name="gasBeddingUseCustomK" value="no" checked>
+                      <label for="gasBeddingCustomKNo">No</label>
+                    </div>
+                    <div class="radio-option">
+                      <input type="radio" id="gasBeddingCustomKYes" name="gasBeddingUseCustomK" value="yes">
+                      <label for="gasBeddingCustomKYes">Yes</label>
+                    </div>
+                  </div>
+                  <div id="gasBeddingDefaultKDisplay" class="form-group-info">
+                    Default thermal conductivity for clean dry sand: 0.20 BTU/hr·ft·°F
+                  </div>
+                  <div id="customGasBeddingKWrapper" class="hidden" style="margin-top: 0.75rem;">
+                    <label for="gasBeddingCustomK">Custom Thermal Conductivity (BTU/hr·ft·°F):</label>
+                    <input type="number" id="gasBeddingCustomK" name="gasBeddingCustomK" placeholder="Enter value" step="0.01">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="field-visit" class="tab-panel">
+            <h2 class="form-section-header">Field Visit Documentation</h2>
+            <div class="form-group">
+                <label for="visitDate">Date of Visit:</label>
+                <input type="date" id="visitDate" name="visitDate">
+            </div>
+            <div class="form-group">
+                <label for="sitePersonnel">Personnel on Site:</label>
+                <textarea id="sitePersonnel" name="sitePersonnel" rows="2" placeholder="List names and affiliations..."></textarea>
+            </div>
+            <div class="form-group">
+                <label for="siteConditions">Weather and Site Conditions:</label>
+                <textarea id="siteConditions" name="siteConditions" rows="3" placeholder="e.g., Sunny, 75°F. Ground is dry. High traffic area."></textarea>
+            </div>
+            <div class="form-group">
+                <label for="fieldObservations">Field Observations and Notes:</label>
+                <div class="form-group-info">
+                    Document any relevant observations, such as visual evidence of the heat source (e.g., steam from manholes, melted snow line), gas line markers, proximity to other utilities, surface conditions, and any measurements taken on-site. Add, other buried and or above ground utilities in the vicinity. (Water, Sewer, Electric, Communications, Propane, drainage, etc.)
+                </div>
+                <textarea id="fieldObservations" name="fieldObservations" rows="6" placeholder="Describe observations..."></textarea>
+            </div>
+            <div class="form-group">
+                <label for="fieldPhotos">Upload Photos (JPEG only):</label>
+                <input type="file" id="fieldPhotos" name="fieldPhotos" multiple accept="image/jpeg">
+                <div class="form-group-info">You can select multiple JPEG files. Images can be resized by dragging the bottom-right corner. Note: Uploaded images are not saved in the assessment file.</div>
+                <div id="image-preview-container"></div>
+            </div>
+          </div>
+
+          <div id="calculation" class="tab-panel">
+            <h2 class="form-section-header">Input Summary</h2>
+            <div class="summary-container">
+              <div class="summary-section">
+                <h3>Evaluation Information</h3>
+                <div id="summary-evaluation"></div>
+              </div>
+              <div class="summary-section">
+                <h3>Heat Source Data</h3>
+                <div id="summary-heat-source"></div>
+              </div>
+              <div class="summary-section">
+                <h3>Gas Line Data</h3>
+                <div id="summary-gas-line"></div>
+              </div>
+              <div class="summary-section">
+                <h3>Soil & Bedding Data</h3>
+                <div id="summary-soil"></div>
+              </div>
+              <div class="summary-section">
+                <h3>Field Visit</h3>
+                <div id="summary-field-visit"></div>
+              </div>
+            </div>
+            <div class="form-actions-calculate">
+              <button type="button" id="calculateButton" class="action-button">Calculate Temperature at Gas Line</button>
+            </div>
+            <div id="resultsContainer" class="hidden">
+              <!-- Calculation results will be injected here -->
+            </div>
+          </div>
+
+          <div id="recommendations" class="tab-panel">
+            <h2 class="form-section-header">Recommendations</h2>
+            <div id="recommendationsContainer">
+              <!-- Dynamic recommendations will be added here -->
+            </div>
+            <div class="form-actions-calculate" style="justify-content: flex-start; border-top: none; padding-top: 0; margin-top: 1rem;">
+              <button type="button" id="addRecommendationButton" class="action-button secondary">Add Recommendation</button>
+            </div>
+          </div>
+
+          <div id="final-report" class="tab-panel">
+            <div id="report-admin-only-message">
+              <h2 class="form-section-header">Final Report</h2>
+              <p class="about-text">This feature is available in Admin mode only. Please log in via the Admin Login tab to generate a comprehensive report.</p>
+            </div>
+            <div id="report-questionnaire" class="hidden">
+              <h2 class="form-section-header">Report Enhancement Questions</h2>
+              <div id="questionnaire-progress">
+                <p>Question <span id="current-q-num">1</span> of <span id="total-q-num">10</span></p>
+                <div class="progress-bar-container">
+                  <div id="progress-bar"></div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="question-answer" id="question-text">Question text goes here...</label>
+                <div class="textarea-wrapper">
+                  <textarea id="question-answer" rows="5" placeholder="Provide details here..."></textarea>
+                  <button type="button" id="rewordAnswer" class="reword-button hidden" aria-label="Reword Answer">Reword</button>
+                </div>
+              </div>
+              <div class="questionnaire-actions">
+                <button type="button" id="clarify-question-btn" class="action-button secondary">Clarify</button>
+                <button type="button" id="skip-question-btn" class="action-button secondary">Skip</button>
+                <button type="button" id="next-question-btn" class="action-button">Next</button>
+              </div>
+            </div>
+            <div id="report-generation-prompt" class="hidden">
+              <h2 class="form-section-header">Ready to Generate</h2>
+              <p class="about-text">All questions have been answered. You can now generate the final, detailed report.</p>
+              <div class="form-actions-calculate">
+                <button type="button" id="generate-report-btn" class="action-button">Generate Final Report</button>
+              </div>
+            </div>
+            <div id="report-loading-spinner" class="hidden">
+              <div class="spinner"></div>
+              <p>Generating your comprehensive report... This may take a moment.</p>
+            </div>
+            <div id="report-actions" class="hidden">
+                <button type="button" id="send-to-pdf-btn" class="action-button">Send to PDF</button>
+            </div>
+            <div id="generated-report-container">
+              <!-- Final report HTML will be injected here -->
+            </div>
+          </div>
+
+          <div id="latex" class="tab-panel">
+            <h2 class="form-section-header">LaTeX Report</h2>
+            <div id="latexContainer" class="hidden">
+                <div class="form-actions-latex">
+                    <button type="button" id="copyLatexButton" class="action-button">Copy Report</button>
+                </div>
+                <pre id="latexReportOutputWrapper"><code id="latexReportOutput"></code></pre>
+            </div>
+            <div id="latexPlaceholder">
+                <p>Please go to the "Calculation" tab and run a calculation to generate the report.</p>
+            </div>
+          </div>
+          
+          <div id="assessment-form" class="tab-panel">
+            <div class="form-actions-print">
+              <button type="button" id="printAssessmentFormButton" class="action-button">Print Form</button>
+            </div>
+            <div id="assessment-form-content">
+              <!-- Content will be injected by JS -->
+            </div>
+          </div>
+
+          <div id="admin" class="tab-panel">
+            <div id="admin-login-wrapper">
+              <h2 class="form-section-header">Admin Access</h2>
+              <div class="form-group">
+                <label for="adminPasscode">Enter Passcode:</label>
+                <input type="password" id="adminPasscode" name="adminPasscode">
+                <button type="button" id="adminLoginButton" class="action-button" style="margin-top: 1rem; align-self: flex-start;">Submit</button>
+                <p id="adminLoginError" class="text-error hidden"></p>
+              </div>
+            </div>
+            <div id="admin-content-wrapper" class="hidden">
+              <h2 class="form-section-header">Admin Settings</h2>
+              <div class="form-group">
+                <label for="apiKey">Gemini API Key:</label>
+                <input type="password" id="apiKey" name="apiKey" placeholder="Enter your API Key">
+                <div class="form-group-info">Your API key is stored locally and used only for the "Reword" feature.</div>
+              </div>
+            </div>
+          </div>
+          
+          <div id="heat-trans-theory" class="tab-panel">
+            <h2 class="form-section-header">Heat Transfer Theory & Calculations</h2>
+            
+            <h3>Core Principles</h3>
+            <p>The calculations in this tool are based on a two-dimensional, <strong>steady-state</strong> heat transfer model. This approach makes a few key assumptions:</p>
+            <ul>
+                <li><strong>Steady-State:</strong> The system has reached thermal equilibrium. This means temperatures at any given point in the soil or on the pipes are no longer changing over time. This represents a continuous, long-term operational state, not a system that is just starting up.</li>
+                <li><strong>Two-Dimensional:</strong> The model analyzes a 2D cross-section of the ground, assuming that heat transfer along the length of the pipe (the third dimension) is negligible compared to the radial heat transfer away from it. This is a valid assumption when the pipes are long and uniform.</li>
+                <li><strong>Thermal Resistance Analogy:</strong> The primary calculation method uses the concept of thermal resistance, which is analogous to electrical resistance in a circuit (Ohm's Law, V=IR). In our case, Temperature Difference = Heat Flow × Thermal Resistance. Heat, like electricity, follows the path of least resistance.</li>
+            </ul>
+
+            <h3>Step 1: Calculating Total Heat Loss (Q) from the Source</h3>
+            <p>The first step is to determine the rate of heat loss per unit length (Q) from the heat source pipe to the ground surface. This is governed by the total thermal resistance of all the materials the heat must travel through.</p>
+            <div class="equation">Q = (T<sub>hs</sub> - T<sub>surface</sub>) / R<sub>total</sub></div>
+            <p>The total resistance is the sum of the resistances of each component in the path: pipe wall, insulation (if any), and the soil itself.</p>
+            <div class="equation">R<sub>total</sub> = R<sub>pipe_wall</sub> + R<sub>insulation</sub> + R<sub>soil_hs</sub></div>
+
+            <h3>Step 2: Calculating Individual Thermal Resistances</h3>
+            <p>Each component's resistance is calculated based on its material properties (thermal conductivity) and geometry.</p>
+            
+            <h4>Pipe Wall Resistance (R<sub>pipe_wall</sub>)</h4>
+            <p>This is the resistance to heat conduction radially outward through the solid wall of the heat source pipe.</p>
+            <div class="equation">R<sub>pipe_wall</sub> = ln(D<sub>hs_outer</sub> / D<sub>hs_inner</sub>) / (2π * k<sub>pipe</sub>)</div>
+            
+            <h4>Insulation Resistance (R<sub>insulation</sub>)</h4>
+            <p>This is the resistance through the insulation layer, which is typically much higher than the pipe wall's resistance. If no insulation is specified, this value is zero.</p>
+            <div class="equation">R<sub>insulation</sub> = ln(D<sub>ins_outer</sub> / D<sub>hs_outer</sub>) / (2π * k<sub>ins</sub>)</div>
+
+            <h4>Soil Resistance from Heat Source to Surface (R<sub>soil_hs</sub>)</h4>
+            <p>This calculates the thermal resistance of the soil between the outer surface of the heat source (or its insulation) and the ground surface above it.</p>
+            <div class="equation">R<sub>soil_hs</sub> = ln((2 * Z<sub>hs</sub> - R<sub>surface</sub>) / R<sub>surface</sub>) / (2π * k<sub>soil</sub>)</div>
+
+            <h3>The Method of Images Explained</h3>
+            <p>The formula for soil resistance isn't as simple as for a pipe wall because the heat flows out in all directions, not just up. To solve this mathematically, a technique called the <strong>Method of Images</strong> is used. This method relies on a clever simplification:</p>
+            <ul>
+              <li>The ground surface is assumed to be a perfect isothermal plane (it has a constant temperature, T<sub>surface</sub>, everywhere).</li>
+              <li>To create this condition mathematically, we pretend there is an imaginary "image" heat <em>sink</em> (a cold pipe) located above the ground at the same distance the real pipe is buried below it.</li>
+              <li>This imaginary sink perfectly cancels out the heat from the real source at the ground surface, creating the constant temperature plane we need. The formulas for soil resistance and temperature calculation are derived from this model.</li>
+            </ul>
+            
+            <h3>Step 3: Calculating Temperature at the Gas Line (T<sub>gas_line</sub>)</h3>
+            <p>Once the total heat loss (Q) is known, we can calculate the resulting temperature at any point in the soil. The formula uses the same principles but is applied to the location of the gas line.</p>
+            
+            <h4>Perpendicular Orientation</h4>
+            <p>For a perpendicular crossing, the calculation finds the temperature at the point where the two pipes' centerlines would intersect in a 2D plane.</p>
+            <div class="equation">T<sub>gas_line</sub> = T<sub>surface</sub> + (Q / (2π * k<sub>soil</sub>)) * ln((Z<sub>hs</sub> + Z<sub>gas</sub>) / |Z<sub>hs</sub> - Z<sub>gas</sub>|)</div>
+            
+            <h4>Parallel Orientation</h4>
+            <p>For parallel lines, the temperature is calculated at the outer edge of the gas pipe that is closest to the heat source, representing the point of maximum thermal impact.</p>
+            <div class="equation">T<sub>gas_line</sub> = T<sub>surface</sub> + (Q / (2π * k<sub>soil</sub>)) * ln(d<sub>image</sub> / d<sub>source</sub>)</div>
+            <p>Where <code>d<sub>source</sub></code> is the straight-line distance from the gas pipe's edge to the center of the real heat source, and <code>d<sub>image</sub></code> is the distance to the center of the imaginary "image" source above ground.</p>
+            <ul>
+              <li><code>d<sub>source</sub> = sqrt( (C - D<sub>gas_od</sub>/2)<sup>2</sup> + (Z<sub>gas</sub> - Z<sub>hs</sub>)<sup>2</sup> )</code></li>
+              <li><code>d<sub>image</sub> = sqrt( (C - D<sub>gas_od</sub>/2)<sup>2</sup> + (Z<sub>gas</sub> + Z<sub>hs</sub>)<sup>2</sup> )</code></li>
+            </ul>
+
+            <h3>Limitations of this Model</h3>
+            <blockquote>
+              <p><strong>Important:</strong> This tool provides a valuable screening-level assessment based on established analytical models. However, it is essential to understand its limitations. For highly critical or complex scenarios, a more advanced numerical analysis (e.g., Finite Element Analysis) may be warranted.</p>
+              <ul>
+                <li><strong>Homogeneous Soil:</strong> The model assumes the soil has a single, uniform thermal conductivity (k<sub>soil</sub>). It does not account for distinct layers of different soil types or localized variations.</li>
+                <li><strong>No Moisture Migration:</strong> The model does not simulate the movement of water within the soil due to thermal gradients, which can significantly alter thermal conductivity over time.</li>
+                <li><strong>No Transient Effects:</strong> The steady-state assumption means the model cannot predict how long it takes for the system to reach its final temperatures or how temperatures might fluctuate with a heat source that cycles on and off.</li>
+                <li><strong>No Convection:</strong> The model only considers heat transfer by conduction. It does not account for heat transfer by groundwater movement (convection), which could dramatically increase heat transfer.</li>
+              </ul>
+            </blockquote>
+
+            <h3>Role of Soil Bedding (Sand Padding)</h3>
+            <p>This model uses a single value for the bulk soil's thermal conductivity (k<sub>soil</sub>). The information collected about trench bedding (e.g., sand padding) is not used directly in a separate calculation layer but is crucial for informing the engineer's choice for the overall k<sub>soil</sub> value.</p>
+            <p>For example, if the native soil is wet clay (high conductivity, ~0.90) but the heat source is known to be encased in a thick envelope of dry sand (low conductivity, ~0.20), the effective thermal resistance of the soil will be higher than if the pipe were in direct contact with the clay. An experienced engineer might select an effective k<sub>soil</sub> value that is a weighted average, or more conservatively, use the native soil's value to assess a worst-case scenario where the bedding's insulating properties have been compromised over time.</p>
+
+            <h3>Variable Definitions</h3>
+            <ul class="variable-list">
+              <li><strong>Q</strong>: Heat loss per unit length (BTU/hr·ft)</li>
+              <li><strong>T<sub>hs</sub></strong>: Temperature of the heat source fluid (°F)</li>
+              <li><strong>T<sub>surface</sub></strong>: Temperature of the ground surface (°F)</li>
+              <li><strong>R<sub>...</sub></strong>: Thermal resistance (hr·ft·°F/BTU)</li>
+              <li><strong>k<sub>pipe</sub>, k<sub>ins</sub>, k<sub>soil</sub></strong>: Thermal conductivity of the material (BTU/hr·ft·°F)</li>
+              <li><strong>D<sub>hs_outer/inner</sub></strong>: Outer/inner diameter of the heat source pipe (ft)</li>
+              <li><strong>D<sub>ins_outer</sub></strong>: Outer diameter of the insulation (ft)</li>
+              <li><strong>D<sub>gas_od</sub></strong>: Outer diameter of the gas pipe (ft)</li>
+              <li><strong>Z<sub>hs</sub></strong>: Depth from ground surface to the centerline of the heat source pipe (ft)</li>
+              <li><strong>Z<sub>gas</sub></strong>: Depth from ground surface to the centerline of the gas pipe (ft)</li>
+              <li><strong>C</strong>: Centerline-to-centerline horizontal distance between parallel pipes (ft)</li>
+              <li><strong>R<sub>surface</sub></strong>: Outer radius of the heat source pipe or its insulation (ft)</li>
+              <li><strong>ln()</strong>: Natural logarithm</li>
+              <li><strong>π</strong>: Pi (approx. 3.14159)</li>
+            </ul>
+
+            <h3>Example Calculation (Parallel Orientation)</h3>
+            <div class="example-calc">
+              <p><strong>Given Inputs:</strong></p>
+              <ul>
+                <li>Heat Source Temp (T<sub>hs</sub>): 350 °F</li>
+                <li>Ground Surface Temp (T<sub>surface</sub>): 50 °F</li>
+                <li>HS Pipe: 8" nominal diameter (OD = 8.625"), 0.322" wall, Carbon Steel (k<sub>pipe</sub> = 26)</li>
+                <li>Insulation: 2" thick, Calcium Silicate (k<sub>ins</sub> = 0.034)</li>
+                <li>Soil: Moist Clay (k<sub>soil</sub> = 0.70)</li>
+                <li>HS Depth (Z<sub>hs</sub>): 4 ft</li>
+                <li>Gas Pipe: 4" nominal diameter (OD = 4.5"), Depth (Z<sub>gas</sub>): 3 ft</li>
+                <li>Parallel Distance (C): 5 ft</li>
+              </ul>
+              <p><strong>1. Calculate Diameters (ft):</strong></p>
+              <ul>
+                <li>D<sub>hs_outer</sub> = 8.625 / 12 = 0.7188 ft</li>
+                <li>D<sub>hs_inner</sub> = (8.625 - 2*0.322) / 12 = 0.6651 ft</li>
+                <li>D<sub>ins_outer</sub> = (8.625 + 2*2) / 12 = 1.0521 ft</li>
+                <li>R<sub>surface</sub> = D<sub>ins_outer</sub> / 2 = 0.5260 ft</li>
+              </ul>
+              <p><strong>2. Calculate Resistances (hr·ft·°F/BTU):</strong></p>
+              <ul>
+                <li>R<sub>pipe_wall</sub> = ln(0.7188 / 0.6651) / (2π * 26) = 0.00048</li>
+                <li>R<sub>insulation</sub> = ln(1.0521 / 0.7188) / (2π * 0.034) = 1.7853</li>
+                <li>R<sub>soil_hs</sub> = ln((2*4 - 0.5260) / 0.5260) / (2π * 0.70) = 0.6015</li>
+                <li><strong>R<sub>total</sub></strong> = 0.00048 + 1.7853 + 0.6015 = <strong>2.3873</strong></li>
+              </ul>
+              <p><strong>3. Calculate Heat Loss (BTU/hr·ft):</strong></p>
+              <ul>
+                <li><strong>Q</strong> = (350 - 50) / 2.3873 = <strong>125.66</strong></li>
+              </ul>
+              <p><strong>4. Calculate Temperature at Gas Line (°F):</strong></p>
+              <ul>
+                <li>D<sub>gas_od</sub> = 4.5 / 12 = 0.375 ft</li>
+                <li>d<sub>source</sub> = sqrt( (5 - 0.375/2)<sup>2</sup> + (3 - 4)<sup>2</sup> ) = 4.915 ft</li>
+                <li>d<sub>image</sub> = sqrt( (5 - 0.375/2)<sup>2</sup> + (3 + 4)<sup>2</sup> ) = 8.508 ft</li>
+                <li><strong>T<sub>gas_line</sub></strong> = 50 + (125.66 / (2π * 0.70)) * ln(8.508 / 4.915) = <strong>65.8 °F</strong></li>
+              </ul>
+            </div>
+          </div>
+          
+        </div>
+
+        <div class="form-actions">
+          <button type="button" id="saveButton" class="action-button">Save Assessment</button>
+          <button type="button" id="loadButton" class="action-button">Load Assessment</button>
+          <input type="file" id="loadFile" class="hidden" accept=".json">
+        </div>
+      </form>
+    </main>
+  </div>
+
+  <div id="rewordModal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <h3 id="rewordModalTitle">Select a Reworded Version</h3>
+      <div id="rewordOptionsContainer" role="radiogroup" aria-labelledby="rewordModalTitle">
+        <!-- AI-generated options will be injected here -->
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="confirmReword" class="action-button">Select</button>
+        <button type="button" id="cancelReword" class="action-button secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
