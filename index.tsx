@@ -1628,6 +1628,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
 
+      if (!response || typeof response.text !== 'string') {
+        throw new Error("Invalid response format from API.");
+      }
       const jsonString = response.text.trim();
       const result = JSON.parse(jsonString);
 
@@ -2028,12 +2031,12 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => {
         const wallThicknessSelect = document.getElementById('wallThickness') as HTMLSelectElement;
         if (wallThicknessSelect && data['wallThickness']) {
-          wallThicknessSelect.value = data['wallThickness'];
+          wallThicknessSelect.value = String(data['wallThickness'] ?? '');
           wallThicknessSelect.dispatchEvent(new Event('change'));
         }
         const customWallThickness = document.getElementById('customWallThickness') as HTMLInputElement;
         if (customWallThickness && data['customWallThickness']) {
-            customWallThickness.value = data['customWallThickness'];
+            customWallThickness.value = String(data['customWallThickness'] ?? '');
         }
       }, 0);
     }
@@ -2042,7 +2045,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (data.gasLineOrientation === 'Parallel' || data.parallelLength !== 'N/A') {
         const parallelLengthInput = document.getElementById('parallelLength') as HTMLInputElement;
         if (parallelLengthInput && data.parallelLength) {
-            parallelLengthInput.value = data.parallelLength;
+            parallelLengthInput.value = String(data.parallelLength ?? '');
             parallelLengthInput.dispatchEvent(new Event('input', { bubbles: true }));
 
             setTimeout(() => {
@@ -2120,11 +2123,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const optionExists = Array.from(gasWallThicknessSelect.options).some(opt => opt.value === data.gasPipeWallThickness);
 
             if (optionExists) {
-                gasWallThicknessSelect.value = data.gasPipeWallThickness;
+                gasWallThicknessSelect.value = String(data.gasPipeWallThickness);
             } else {
                 // If it doesn't exist, it's a custom value
                 gasWallThicknessSelect.value = 'custom';
-                customGasWallThicknessInput.value = data.gasPipeWallThickness;
+                customGasWallThicknessInput.value = String(data.gasPipeWallThickness);
             }
             gasWallThicknessSelect.dispatchEvent(new Event('change', { bubbles: true }));
         }
@@ -2136,10 +2139,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const optionExists = Array.from(gasSdrSelect.options).some(opt => opt.value === data.gasPipeSDR);
 
             if (optionExists) {
-                gasSdrSelect.value = data.gasPipeSDR;
+                gasSdrSelect.value = String(data.gasPipeSDR);
             } else {
                 gasSdrSelect.value = 'other';
-                customGasSdrInput.value = data.gasPipeSDR;
+                customGasSdrInput.value = String(data.gasPipeSDR);
             }
             gasSdrSelect.dispatchEvent(new Event('change', { bubbles: true }));
         }
@@ -2288,7 +2291,10 @@ document.addEventListener('DOMContentLoaded', () => {
             config: { systemInstruction }
           });
           
-          const clarification = response.text !== undefined ? response.text : 'Could not get clarification.';
+          let clarification = 'Could not get clarification.';
+          if (response && typeof response.text === 'string') {
+            clarification = response.text;
+          }
           alert(`Clarification:\n\n${clarification}`);
       } catch (error) {
           console.error("AI Clarification Error:", error);
@@ -2360,7 +2366,10 @@ document.addEventListener('DOMContentLoaded', () => {
         config: { systemInstruction }
       });
       
-      const reportHtml = response.text ?? '';
+      let reportHtml = '';
+      if (response && typeof response.text === 'string') {
+        reportHtml = response.text;
+      }
 
       if(reportContainer) reportContainer.innerHTML = reportHtml;
       if(reportActions) reportActions.classList.remove('hidden');
@@ -2659,12 +2668,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const latexOutputEl = document.getElementById('latexReportOutput');
     if (!latexContainer || !latexPlaceholder || !latexOutputEl) return;
   
-    const escapeLatex = (str: string | undefined | null) => {
+    const escapeLatex = (str: string | undefined | null): string => {
       if (!str) return 'N/A';
       return str.replace(/&/g, '\\&').replace(/%/g, '\\%').replace(/\$/g, '\\$').replace(/#/g, '\\#').replace(/_/g, '\\_').replace(/\{/g, '\\{').replace(/\}/g, '\\}').replace(/~/g, '\\textasciitilde{}').replace(/\^/g, '\\textasciicircum{}').replace(/\\/g, '\\textbackslash{}');
     };
   
-    const formatValue = (value: any, unit = '') => {
+    const formatValue = (value: any, unit = ''): string => {
       const valStr = String(value).trim();
       if (valStr === '' || valStr === 'N/A' || valStr === 'null' || valStr === 'undefined') {
         return 'N/A';
@@ -2672,12 +2681,12 @@ document.addEventListener('DOMContentLoaded', () => {
       return `${escapeLatex(valStr)}${unit ? ` ${unit}` : ''}`;
     };
 
-    const formatLongText = (text: string | undefined | null) => {
+    const formatLongText = (text: string | undefined | null): string => {
         if (!text) return 'N/A';
         return `\\\\ \\parbox[t]{\\dimexpr\\linewidth-9em}{${escapeLatex(text)}}`;
     }
   
-    const formatItem = (label: string, value: string | undefined | null) => `\\item[\\textbf{${label}:}] ${value ?? 'N/A'}`;
+    const formatItem = (label: string, value: string | undefined | null): string => `\\item[\\textbf{${label}:}] ${value ?? 'N/A'}`;
     const beginList = '\\begin{description}[font=\\normalfont, style=unboxed, leftmargin=0pt]';
     const endList = '\\end{description}';
   

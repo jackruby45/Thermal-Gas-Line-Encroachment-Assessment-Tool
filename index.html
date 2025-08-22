@@ -871,50 +871,49 @@
             <div class="sub-section">
               <h3 class="sub-section-header">Heat Source Trench Bedding</h3>
               <div class="form-group">
+                <label class="form-label">Was the heat source installed with sand bedding?</label>
                 <div class="radio-group horizontal">
-                  <div class="radio-option">
-                    <input type="radio" id="heatSourceBeddingSand" name="heatSourceBeddingType" value="sand">
-                    <label for="heatSourceBeddingSand">Installed with sand bedding</label>
-                  </div>
                   <div class="radio-option">
                     <input type="radio" id="heatSourceBeddingUnknown" name="heatSourceBeddingType" value="unknown" checked>
                     <label for="heatSourceBeddingUnknown">Unknown</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="heatSourceBeddingSand" name="heatSourceBeddingType" value="sand">
+                    <label for="heatSourceBeddingSand">Yes, Sand Bedding</label>
                   </div>
                 </div>
               </div>
               <div id="heatSourceBeddingDetailsWrapper" class="hidden">
                 <div class="form-group">
-                  <label>Bedding Dimensions from Pipe Centerline:</label>
+                  <label>Sand Bedding Dimensions (inches):</label>
                   <div class="dimension-grid">
-                    <label for="heatSourceBeddingTop">Above (in):</label>
-                    <input type="number" id="heatSourceBeddingTop" name="heatSourceBeddingTop" placeholder="inches" min="0">
-                    <label for="heatSourceBeddingBottom">Below (in):</label>
-                    <input type="number" id="heatSourceBeddingBottom" name="heatSourceBeddingBottom" placeholder="inches" min="0">
-                    <label for="heatSourceBeddingLeft">Left (in):</label>
-                    <input type="number" id="heatSourceBeddingLeft" name="heatSourceBeddingLeft" placeholder="inches" min="0">
-                    <label for="heatSourceBeddingRight">Right (in):</label>
-                    <input type="number" id="heatSourceBeddingRight" name="heatSourceBeddingRight" placeholder="inches" min="0">
+                    <label for="heatSourceBeddingTop">Above pipe:</label>
+                    <input type="number" id="heatSourceBeddingTop" name="heatSourceBeddingTop" placeholder="e.g., 6" min="0">
+                    <label for="heatSourceBeddingBottom">Below pipe:</label>
+                    <input type="number" id="heatSourceBeddingBottom" name="heatSourceBeddingBottom" placeholder="e.g., 6" min="0">
+                    <label for="heatSourceBeddingLeft">Left of pipe:</label>
+                    <input type="number" id="heatSourceBeddingLeft" name="heatSourceBeddingLeft" placeholder="e.g., 6" min="0">
+                    <label for="heatSourceBeddingRight">Right of pipe:</label>
+                    <input type="number" id="heatSourceBeddingRight" name="heatSourceBeddingRight" placeholder="e.g., 6" min="0">
                   </div>
                 </div>
                 <div class="form-group">
-                  <label>Use custom thermal conductivity for sand bedding?</label>
+                  <label class="form-label">Use custom Thermal Conductivity (k) for heat source bedding?</label>
                   <div class="radio-group horizontal">
                     <div class="radio-option">
-                      <input type="radio" id="heatSourceBeddingCustomKNo" name="heatSourceBeddingUseCustomK" value="no" checked>
-                      <label for="heatSourceBeddingCustomKNo">No</label>
+                      <input type="radio" id="heatSourceBeddingUseCustomKNo" name="heatSourceBeddingUseCustomK" value="no" checked>
+                      <label for="heatSourceBeddingUseCustomKNo">No, use default</label>
                     </div>
                     <div class="radio-option">
-                      <input type="radio" id="heatSourceBeddingCustomKYes" name="heatSourceBeddingUseCustomK" value="yes">
-                      <label for="heatSourceBeddingCustomKYes">Yes</label>
+                      <input type="radio" id="heatSourceBeddingUseCustomKYes" name="heatSourceBeddingUseCustomK" value="yes">
+                      <label for="heatSourceBeddingUseCustomKYes">Yes, specify custom</label>
                     </div>
                   </div>
-                  <div id="heatSourceBeddingDefaultKDisplay" class="form-group-info">
-                    Default thermal conductivity for clean dry sand: 0.20 BTU/hr·ft·°F
-                  </div>
-                  <div id="customHeatSourceBeddingKWrapper" class="hidden" style="margin-top: 0.75rem;">
-                    <label for="heatSourceBeddingCustomK">Custom Thermal Conductivity (BTU/hr·ft·°F):</label>
-                    <input type="number" id="heatSourceBeddingCustomK" name="heatSourceBeddingCustomK" placeholder="Enter value" step="0.01">
-                  </div>
+                  <div id="heatSourceBeddingDefaultKDisplay" class="form-group-info">Default sand bedding k = 0.20 BTU/hr·ft·°F</div>
+                </div>
+                <div id="customHeatSourceBeddingKWrapper" class="form-group hidden">
+                  <label for="heatSourceBeddingCustomK">Custom Bedding Thermal Conductivity (k):</label>
+                  <input type="number" id="heatSourceBeddingCustomK" name="heatSourceBeddingCustomK" placeholder="Enter value in BTU/hr·ft·°F" step="0.01">
                 </div>
               </div>
             </div>
@@ -922,86 +921,80 @@
             <div class="sub-section">
               <h3 class="sub-section-header">Gas Line Trench Bedding</h3>
               <div class="form-group">
+                <label class="form-label">Was the gas line installed with sand bedding?</label>
                 <div class="radio-group horizontal">
-                  <div class="radio-option">
-                    <input type="radio" id="gasLineBeddingSand" name="gasLineBeddingType" value="sand">
-                    <label for="gasLineBeddingSand">Installed with sand bedding</label>
-                  </div>
                   <div class="radio-option">
                     <input type="radio" id="gasLineBeddingUnknown" name="gasLineBeddingType" value="unknown" checked>
                     <label for="gasLineBeddingUnknown">Unknown</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="gasLineBeddingSand" name="gasLineBeddingType" value="sand">
+                    <label for="gasLineBeddingSand">Yes, Sand Bedding</label>
                   </div>
                 </div>
               </div>
               <div id="gasLineBeddingDetailsWrapper" class="hidden">
                 <div class="form-group">
-                  <label>Bedding Dimensions from Pipe Centerline:</label>
+                  <label>Sand Bedding Dimensions (inches):</label>
                   <div class="dimension-grid">
-                    <label for="gasBeddingTop">Above (in):</label>
-                    <input type="number" id="gasBeddingTop" name="gasBeddingTop" placeholder="inches" min="0">
-                    <label for="gasBeddingBottom">Below (in):</label>
-                    <input type="number" id="gasBeddingBottom" name="gasBeddingBottom" placeholder="inches" min="0">
-                    <label for="gasBeddingLeft">Left (in):</label>
-                    <input type="number" id="gasBeddingLeft" name="gasBeddingLeft" placeholder="inches" min="0">
-                    <label for="gasBeddingRight">Right (in):</label>
-                    <input type="number" id="gasBeddingRight" name="gasBeddingRight" placeholder="inches" min="0">
+                    <label for="gasBeddingTop">Above pipe:</label>
+                    <input type="number" id="gasBeddingTop" name="gasBeddingTop" placeholder="e.g., 6" min="0">
+                    <label for="gasBeddingBottom">Below pipe:</label>
+                    <input type="number" id="gasBeddingBottom" name="gasBeddingBottom" placeholder="e.g., 6" min="0">
+                    <label for="gasBeddingLeft">Left of pipe:</label>
+                    <input type="number" id="gasBeddingLeft" name="gasBeddingLeft" placeholder="e.g., 6" min="0">
+                    <label for="gasBeddingRight">Right of pipe:</label>
+                    <input type="number" id="gasBeddingRight" name="gasBeddingRight" placeholder="e.g., 6" min="0">
                   </div>
                 </div>
                 <div class="form-group">
-                  <label>Use custom thermal conductivity for sand bedding?</label>
+                  <label class="form-label">Use custom Thermal Conductivity (k) for gas line bedding?</label>
                   <div class="radio-group horizontal">
                     <div class="radio-option">
-                      <input type="radio" id="gasBeddingCustomKNo" name="gasBeddingUseCustomK" value="no" checked>
-                      <label for="gasBeddingCustomKNo">No</label>
+                      <input type="radio" id="gasBeddingUseCustomKNo" name="gasBeddingUseCustomK" value="no" checked>
+                      <label for="gasBeddingUseCustomKNo">No, use default</label>
                     </div>
                     <div class="radio-option">
-                      <input type="radio" id="gasBeddingCustomKYes" name="gasBeddingUseCustomK" value="yes">
-                      <label for="gasBeddingCustomKYes">Yes</label>
+                      <input type="radio" id="gasBeddingUseCustomKYes" name="gasBeddingUseCustomK" value="yes">
+                      <label for="gasBeddingUseCustomKYes">Yes, specify custom</label>
                     </div>
                   </div>
-                  <div id="gasBeddingDefaultKDisplay" class="form-group-info">
-                    Default thermal conductivity for clean dry sand: 0.20 BTU/hr·ft·°F
-                  </div>
-                  <div id="customGasBeddingKWrapper" class="hidden" style="margin-top: 0.75rem;">
-                    <label for="gasBeddingCustomK">Custom Thermal Conductivity (BTU/hr·ft·°F):</label>
-                    <input type="number" id="gasBeddingCustomK" name="gasBeddingCustomK" placeholder="Enter value" step="0.01">
-                  </div>
+                  <div id="gasBeddingDefaultKDisplay" class="form-group-info">Default sand bedding k = 0.20 BTU/hr·ft·°F</div>
+                </div>
+                <div id="customGasBeddingKWrapper" class="form-group hidden">
+                  <label for="gasBeddingCustomK">Custom Bedding Thermal Conductivity (k):</label>
+                  <input type="number" id="gasBeddingCustomK" name="gasBeddingCustomK" placeholder="Enter value in BTU/hr·ft·°F" step="0.01">
                 </div>
               </div>
             </div>
           </div>
 
           <div id="field-visit" class="tab-panel">
-            <h2 class="form-section-header">Field Visit Documentation</h2>
+            <h2 class="form-section-header">Field Visit</h2>
             <div class="form-group">
-                <label for="visitDate">Date of Visit:</label>
-                <input type="date" id="visitDate" name="visitDate">
+              <label for="visitDate">Date of Visit:</label>
+              <input type="date" id="visitDate" name="visitDate">
             </div>
             <div class="form-group">
-                <label for="sitePersonnel">Personnel on Site:</label>
-                <textarea id="sitePersonnel" name="sitePersonnel" rows="2" placeholder="List names and affiliations..."></textarea>
+              <label for="sitePersonnel">Personnel on Site:</label>
+              <textarea id="sitePersonnel" name="sitePersonnel" rows="3" placeholder="List names and affiliations..."></textarea>
             </div>
             <div class="form-group">
-                <label for="siteConditions">Weather and Site Conditions:</label>
-                <textarea id="siteConditions" name="siteConditions" rows="3" placeholder="e.g., Sunny, 75°F. Ground is dry. High traffic area."></textarea>
+              <label for="siteConditions">Weather and Site Conditions:</label>
+              <textarea id="siteConditions" name="siteConditions" rows="3" placeholder="Describe weather, ground cover, etc..."></textarea>
             </div>
             <div class="form-group">
-                <label for="fieldObservations">Field Observations and Notes:</label>
-                <div class="form-group-info">
-                    Document any relevant observations, such as visual evidence of the heat source (e.g., steam from manholes, melted snow line), gas line markers, proximity to other utilities, surface conditions, and any measurements taken on-site. Add, other buried and or above ground utilities in the vicinity. (Water, Sewer, Electric, Communications, Propane, drainage, etc.)
-                </div>
-                <textarea id="fieldObservations" name="fieldObservations" rows="6" placeholder="Describe observations..."></textarea>
+              <label for="fieldObservations">Field Observations and Notes:</label>
+              <textarea id="fieldObservations" name="fieldObservations" rows="6" placeholder="Document any relevant observations, measurements, or discussions..."></textarea>
             </div>
             <div class="form-group">
-                <label for="fieldPhotos">Upload Photos (JPEG only):</label>
-                <input type="file" id="fieldPhotos" name="fieldPhotos" multiple accept="image/jpeg">
-                <div class="form-group-info">You can select multiple JPEG files. Images can be resized by dragging the bottom-right corner. Note: Uploaded images are not saved in the assessment file.</div>
-                <div id="image-preview-container"></div>
+              <label for="fieldPhotos">Field Photos (JPEG only):</label>
+              <input type="file" id="fieldPhotos" name="fieldPhotos" multiple accept="image/jpeg">
+              <div id="image-preview-container"></div>
             </div>
           </div>
 
           <div id="calculation" class="tab-panel">
-            <h2 class="form-section-header">Input Summary</h2>
             <div class="summary-container">
               <div class="summary-section">
                 <h3>Evaluation Information</h3>
@@ -1023,43 +1016,42 @@
                 <h3>Field Visit</h3>
                 <div id="summary-field-visit"></div>
               </div>
-            </div>
-            <div class="form-actions-calculate">
-              <button type="button" id="calculateButton" class="action-button">Calculate Temperature at Gas Line</button>
-            </div>
-            <div id="resultsContainer" class="hidden">
-              <!-- Calculation results will be injected here -->
+              <div class="form-actions-calculate">
+                <button type="button" id="calculateButton" class="action-button">Calculate Temperature at Gas Line</button>
+              </div>
+              <div id="resultsContainer" class="hidden"></div>
             </div>
           </div>
-
+          
           <div id="recommendations" class="tab-panel">
             <h2 class="form-section-header">Recommendations</h2>
             <div id="recommendationsContainer">
-              <!-- Dynamic recommendations will be added here -->
+              <!-- Dynamic recommendation fields will be added here -->
             </div>
-            <div class="form-actions-calculate" style="justify-content: flex-start; border-top: none; padding-top: 0; margin-top: 1rem;">
-              <button type="button" id="addRecommendationButton" class="action-button secondary">Add Recommendation</button>
-            </div>
+            <button type="button" id="addRecommendationButton" class="action-button secondary">Add Recommendation</button>
           </div>
-
+          
           <div id="final-report" class="tab-panel">
-            <div id="report-admin-only-message">
-              <h2 class="form-section-header">Final Report</h2>
-              <p class="about-text">This feature is available in Admin mode only. Please log in via the Admin Login tab to generate a comprehensive report.</p>
+            <div id="report-admin-only-message" class="hidden">
+              <p class="about-text">This feature is available for administrators only. Please log in via the <strong>Admin Login</strong> tab.</p>
             </div>
+
             <div id="report-questionnaire" class="hidden">
-              <h2 class="form-section-header">Report Enhancement Questions</h2>
+              <h2 class="form-section-header">Final Report Questionnaire</h2>
+              <p>To generate a comprehensive report, please answer the following questions. Your answers will provide critical context for the analysis and recommendations.</p>
+              
               <div id="questionnaire-progress">
-                <p>Question <span id="current-q-num">1</span> of <span id="total-q-num">10</span></p>
+                <p>Question <span id="current-q-num">1</span> of <span id="total-q-num">15</span></p>
                 <div class="progress-bar-container">
-                  <div id="progress-bar"></div>
+                    <div id="progress-bar"></div>
                 </div>
               </div>
+
               <div class="form-group">
                 <label for="question-answer" id="question-text">Question text goes here...</label>
                 <div class="textarea-wrapper">
-                  <textarea id="question-answer" rows="5" placeholder="Provide details here..."></textarea>
-                  <button type="button" id="rewordAnswer" class="reword-button hidden" aria-label="Reword Answer">Reword</button>
+                  <textarea id="question-answer" rows="5" placeholder="Your answer here..."></textarea>
+                  <button type="button" id="rewordAnswer" class="reword-button hidden">Reword</button>
                 </div>
               </div>
               <div class="questionnaire-actions">
@@ -1068,219 +1060,143 @@
                 <button type="button" id="next-question-btn" class="action-button">Next</button>
               </div>
             </div>
+
             <div id="report-generation-prompt" class="hidden">
-              <h2 class="form-section-header">Ready to Generate</h2>
-              <p class="about-text">All questions have been answered. You can now generate the final, detailed report.</p>
-              <div class="form-actions-calculate">
-                <button type="button" id="generate-report-btn" class="action-button">Generate Final Report</button>
-              </div>
+                <h2 class="form-section-header">Generate Final Report</h2>
+                <p>All questions have been answered. You can now generate the final assessment report.</p>
+                <button type="button" id="generate-report-btn" class="action-button">Generate Report</button>
             </div>
+            
             <div id="report-loading-spinner" class="hidden">
               <div class="spinner"></div>
-              <p>Generating your comprehensive report... This may take a moment.</p>
+              <p>Generating report... This may take a moment.</p>
             </div>
+
             <div id="report-actions" class="hidden">
-                <button type="button" id="send-to-pdf-btn" class="action-button">Send to PDF</button>
+              <button type="button" id="send-to-pdf-btn" class="action-button secondary">Save to PDF</button>
             </div>
-            <div id="generated-report-container">
-              <!-- Final report HTML will be injected here -->
-            </div>
+            <div id="generated-report-container"></div>
           </div>
 
           <div id="latex" class="tab-panel">
             <h2 class="form-section-header">LaTeX Report</h2>
-            <div id="latexContainer" class="hidden">
-                <div class="form-actions-latex">
-                    <button type="button" id="copyLatexButton" class="action-button">Copy Report</button>
-                </div>
-                <pre id="latexReportOutputWrapper"><code id="latexReportOutput"></code></pre>
-            </div>
+            <p>This section contains a full report formatted in LaTeX. You can copy this code and compile it in any standard LaTeX editor.</p>
             <div id="latexPlaceholder">
-                <p>Please go to the "Calculation" tab and run a calculation to generate the report.</p>
+              <p>Run a calculation on the 'Calculation' tab to generate the LaTeX report.</p>
+            </div>
+            <div id="latexContainer" class="hidden">
+              <div class="form-actions-latex">
+                <button type="button" id="copyLatexButton" class="action-button secondary">Copy LaTeX Code</button>
+              </div>
+              <div id="latexReportOutputWrapper">
+                <pre><code id="latexReportOutput"></code></pre>
+              </div>
             </div>
           </div>
           
           <div id="assessment-form" class="tab-panel">
             <div class="form-actions-print">
-              <button type="button" id="printAssessmentFormButton" class="action-button">Print Form</button>
+              <button type="button" id="printAssessmentFormButton" class="action-button secondary">Print Form</button>
             </div>
             <div id="assessment-form-content">
-              <!-- Content will be injected by JS -->
+              <!-- Content generated by JS -->
             </div>
           </div>
 
           <div id="admin" class="tab-panel">
             <div id="admin-login-wrapper">
-              <h2 class="form-section-header">Admin Access</h2>
+              <h2 class="form-section-header">Admin Login</h2>
               <div class="form-group">
                 <label for="adminPasscode">Enter Passcode:</label>
                 <input type="password" id="adminPasscode" name="adminPasscode">
-                <button type="button" id="adminLoginButton" class="action-button" style="margin-top: 1rem; align-self: flex-start;">Submit</button>
                 <p id="adminLoginError" class="text-error hidden"></p>
               </div>
+              <button type="button" id="adminLoginButton" class="action-button">Login</button>
             </div>
             <div id="admin-content-wrapper" class="hidden">
-              <h2 class="form-section-header">Admin Settings</h2>
+              <h2 class="form-section-header">Admin Panel</h2>
+              <p>Welcome, Admin. AI features are now enabled across the tool.</p>
               <div class="form-group">
                 <label for="apiKey">Gemini API Key:</label>
-                <input type="password" id="apiKey" name="apiKey" placeholder="Enter your API Key">
-                <div class="form-group-info">Your API key is stored locally and used only for the "Reword" feature.</div>
+                <input type="password" id="apiKey" name="apiKey" placeholder="Enter your Gemini API Key">
+                <div class="form-group-info">
+                  The API key is required to use the "Reword" and "Final Report" generation features. Your key is stored only in your browser for this session and is not saved or transmitted anywhere else.
+                </div>
               </div>
             </div>
           </div>
-          
+
           <div id="heat-trans-theory" class="tab-panel">
-            <h2 class="form-section-header">Heat Transfer Theory & Calculations</h2>
-            
-            <h3>Core Principles</h3>
-            <p>The calculations in this tool are based on a two-dimensional, <strong>steady-state</strong> heat transfer model. This approach makes a few key assumptions:</p>
+            <h2 class="form-section-header">Heat Transfer Theory</h2>
+            <p>This tool uses a steady-state heat transfer model based on the concept of thermal resistance to calculate the temperature at the surface of a nearby gas line. The model accounts for conduction through the pipe wall, any insulation, and the surrounding soil.</p>
+
+            <h3>Core Equation</h3>
+            <p>The fundamental principle is that the heat loss from the source (Q) is equal to the temperature difference (ΔT) between the heat source and the ground surface, divided by the total thermal resistance (R_total).</p>
+            <div class="equation">Q = (T_hs - T_surface) / R_total</div>
+
+            <h3>Thermal Resistance Components</h3>
+            <p>The total thermal resistance is the sum of the individual resistances in the heat path:</p>
+            <div class="equation">R_total = R_pipe + R_insulation + R_soil</div>
             <ul>
-                <li><strong>Steady-State:</strong> The system has reached thermal equilibrium. This means temperatures at any given point in the soil or on the pipes are no longer changing over time. This represents a continuous, long-term operational state, not a system that is just starting up.</li>
-                <li><strong>Two-Dimensional:</strong> The model analyzes a 2D cross-section of the ground, assuming that heat transfer along the length of the pipe (the third dimension) is negligible compared to the radial heat transfer away from it. This is a valid assumption when the pipes are long and uniform.</li>
-                <li><strong>Thermal Resistance Analogy:</strong> The primary calculation method uses the concept of thermal resistance, which is analogous to electrical resistance in a circuit (Ohm's Law, V=IR). In our case, Temperature Difference = Heat Flow × Thermal Resistance. Heat, like electricity, follows the path of least resistance.</li>
+              <li><strong>Pipe Wall Resistance (R_pipe):</strong> This is the resistance to heat flow through the material of the heat source pipe itself.
+                <div class="equation">R_pipe = ln(D_outer / D_inner) / (2 * π * k_pipe)</div>
+              </li>
+              <li><strong>Insulation Resistance (R_insulation):</strong> If insulation is present, this is its resistance to heat flow. If there's no insulation, this value is zero.
+                <div class="equation">R_insulation = ln(D_ins / D_pipe_outer) / (2 * π * k_insulation)</div>
+              </li>
+              <li><strong>Soil Resistance (R_soil):</strong> This represents the resistance of the soil between the heat source pipe (or its insulation) and the ground surface. It uses the "method of images" to account for the boundary condition at the ground surface.
+                <div class="equation">R_soil = ln((2Z - r) / r) / (2 * π * k_soil)</div>
+              </li>
             </ul>
 
-            <h3>Step 1: Calculating Total Heat Loss (Q) from the Source</h3>
-            <p>The first step is to determine the rate of heat loss per unit length (Q) from the heat source pipe to the ground surface. This is governed by the total thermal resistance of all the materials the heat must travel through.</p>
-            <div class="equation">Q = (T<sub>hs</sub> - T<sub>surface</sub>) / R<sub>total</sub></div>
-            <p>The total resistance is the sum of the resistances of each component in the path: pipe wall, insulation (if any), and the soil itself.</p>
-            <div class="equation">R<sub>total</sub> = R<sub>pipe_wall</sub> + R<sub>insulation</sub> + R<sub>soil_hs</sub></div>
-
-            <h3>Step 2: Calculating Individual Thermal Resistances</h3>
-            <p>Each component's resistance is calculated based on its material properties (thermal conductivity) and geometry.</p>
+            <h3>Calculating Temperature at the Gas Line</h3>
+            <p>Once the heat loss (Q) is known, the temperature at any point in the soil can be calculated. The tool calculates the temperature at the surface of the gas line using a similar application of the method of images, accounting for the positions of both the heat source and the gas line.</p>
             
-            <h4>Pipe Wall Resistance (R<sub>pipe_wall</sub>)</h4>
-            <p>This is the resistance to heat conduction radially outward through the solid wall of the heat source pipe.</p>
-            <div class="equation">R<sub>pipe_wall</sub> = ln(D<sub>hs_outer</sub> / D<sub>hs_inner</sub>) / (2π * k<sub>pipe</sub>)</div>
-            
-            <h4>Insulation Resistance (R<sub>insulation</sub>)</h4>
-            <p>This is the resistance through the insulation layer, which is typically much higher than the pipe wall's resistance. If no insulation is specified, this value is zero.</p>
-            <div class="equation">R<sub>insulation</sub> = ln(D<sub>ins_outer</sub> / D<sub>hs_outer</sub>) / (2π * k<sub>ins</sub>)</div>
+            <h4>For Parallel Lines:</h4>
+            <div class="equation">T_gas = T_surface + (Q / (2 * π * k_soil)) * ln(d_image / d_source)</div>
+            <blockquote>Where <strong>d_source</strong> is the distance from the gas line to the heat source, and <strong>d_image</strong> is the distance from the gas line to the "image" of the heat source reflected across the ground surface.</blockquote>
 
-            <h4>Soil Resistance from Heat Source to Surface (R<sub>soil_hs</sub>)</h4>
-            <p>This calculates the thermal resistance of the soil between the outer surface of the heat source (or its insulation) and the ground surface above it.</p>
-            <div class="equation">R<sub>soil_hs</sub> = ln((2 * Z<sub>hs</sub> - R<sub>surface</sub>) / R<sub>surface</sub>) / (2π * k<sub>soil</sub>)</div>
+            <h4>For Perpendicular (Crossing) Lines:</h4>
+            <div class="equation">T_gas = T_surface + (Q / (2 * π * k_soil)) * ln((Z_hs + Z_gas) / |Z_hs - Z_gas|)</div>
+            <blockquote>This formula calculates the temperature at the intersection point, where the influence of the heat source is strongest.</blockquote>
 
-            <h3>The Method of Images Explained</h3>
-            <p>The formula for soil resistance isn't as simple as for a pipe wall because the heat flows out in all directions, not just up. To solve this mathematically, a technique called the <strong>Method of Images</strong> is used. This method relies on a clever simplification:</p>
-            <ul>
-              <li>The ground surface is assumed to be a perfect isothermal plane (it has a constant temperature, T<sub>surface</sub>, everywhere).</li>
-              <li>To create this condition mathematically, we pretend there is an imaginary "image" heat <em>sink</em> (a cold pipe) located above the ground at the same distance the real pipe is buried below it.</li>
-              <li>This imaginary sink perfectly cancels out the heat from the real source at the ground surface, creating the constant temperature plane we need. The formulas for soil resistance and temperature calculation are derived from this model.</li>
-            </ul>
-            
-            <h3>Step 3: Calculating Temperature at the Gas Line (T<sub>gas_line</sub>)</h3>
-            <p>Once the total heat loss (Q) is known, we can calculate the resulting temperature at any point in the soil. The formula uses the same principles but is applied to the location of the gas line.</p>
-            
-            <h4>Perpendicular Orientation</h4>
-            <p>For a perpendicular crossing, the calculation finds the temperature at the point where the two pipes' centerlines would intersect in a 2D plane.</p>
-            <div class="equation">T<sub>gas_line</sub> = T<sub>surface</sub> + (Q / (2π * k<sub>soil</sub>)) * ln((Z<sub>hs</sub> + Z<sub>gas</sub>) / |Z<sub>hs</sub> - Z<sub>gas</sub>|)</div>
-            
-            <h4>Parallel Orientation</h4>
-            <p>For parallel lines, the temperature is calculated at the outer edge of the gas pipe that is closest to the heat source, representing the point of maximum thermal impact.</p>
-            <div class="equation">T<sub>gas_line</sub> = T<sub>surface</sub> + (Q / (2π * k<sub>soil</sub>)) * ln(d<sub>image</sub> / d<sub>source</sub>)</div>
-            <p>Where <code>d<sub>source</sub></code> is the straight-line distance from the gas pipe's edge to the center of the real heat source, and <code>d<sub>image</sub></code> is the distance to the center of the imaginary "image" source above ground.</p>
-            <ul>
-              <li><code>d<sub>source</sub> = sqrt( (C - D<sub>gas_od</sub>/2)<sup>2</sup> + (Z<sub>gas</sub> - Z<sub>hs</sub>)<sup>2</sup> )</code></li>
-              <li><code>d<sub>image</sub> = sqrt( (C - D<sub>gas_od</sub>/2)<sup>2</sup> + (Z<sub>gas</sub> + Z<sub>hs</sub>)<sup>2</sup> )</code></li>
-            </ul>
-
-            <h3>Limitations of this Model</h3>
-            <blockquote>
-              <p><strong>Important:</strong> This tool provides a valuable screening-level assessment based on established analytical models. However, it is essential to understand its limitations. For highly critical or complex scenarios, a more advanced numerical analysis (e.g., Finite Element Analysis) may be warranted.</p>
-              <ul>
-                <li><strong>Homogeneous Soil:</strong> The model assumes the soil has a single, uniform thermal conductivity (k<sub>soil</sub>). It does not account for distinct layers of different soil types or localized variations.</li>
-                <li><strong>No Moisture Migration:</strong> The model does not simulate the movement of water within the soil due to thermal gradients, which can significantly alter thermal conductivity over time.</li>
-                <li><strong>No Transient Effects:</strong> The steady-state assumption means the model cannot predict how long it takes for the system to reach its final temperatures or how temperatures might fluctuate with a heat source that cycles on and off.</li>
-                <li><strong>No Convection:</strong> The model only considers heat transfer by conduction. It does not account for heat transfer by groundwater movement (convection), which could dramatically increase heat transfer.</li>
-              </ul>
-            </blockquote>
-
-            <h3>Role of Soil Bedding (Sand Padding)</h3>
-            <p>This model uses a single value for the bulk soil's thermal conductivity (k<sub>soil</sub>). The information collected about trench bedding (e.g., sand padding) is not used directly in a separate calculation layer but is crucial for informing the engineer's choice for the overall k<sub>soil</sub> value.</p>
-            <p>For example, if the native soil is wet clay (high conductivity, ~0.90) but the heat source is known to be encased in a thick envelope of dry sand (low conductivity, ~0.20), the effective thermal resistance of the soil will be higher than if the pipe were in direct contact with the clay. An experienced engineer might select an effective k<sub>soil</sub> value that is a weighted average, or more conservatively, use the native soil's value to assess a worst-case scenario where the bedding's insulating properties have been compromised over time.</p>
-
-            <h3>Variable Definitions</h3>
+            <h3>Key Variables</h3>
             <ul class="variable-list">
-              <li><strong>Q</strong>: Heat loss per unit length (BTU/hr·ft)</li>
-              <li><strong>T<sub>hs</sub></strong>: Temperature of the heat source fluid (°F)</li>
-              <li><strong>T<sub>surface</sub></strong>: Temperature of the ground surface (°F)</li>
-              <li><strong>R<sub>...</sub></strong>: Thermal resistance (hr·ft·°F/BTU)</li>
-              <li><strong>k<sub>pipe</sub>, k<sub>ins</sub>, k<sub>soil</sub></strong>: Thermal conductivity of the material (BTU/hr·ft·°F)</li>
-              <li><strong>D<sub>hs_outer/inner</sub></strong>: Outer/inner diameter of the heat source pipe (ft)</li>
-              <li><strong>D<sub>ins_outer</sub></strong>: Outer diameter of the insulation (ft)</li>
-              <li><strong>D<sub>gas_od</sub></strong>: Outer diameter of the gas pipe (ft)</li>
-              <li><strong>Z<sub>hs</sub></strong>: Depth from ground surface to the centerline of the heat source pipe (ft)</li>
-              <li><strong>Z<sub>gas</sub></strong>: Depth from ground surface to the centerline of the gas pipe (ft)</li>
-              <li><strong>C</strong>: Centerline-to-centerline horizontal distance between parallel pipes (ft)</li>
-              <li><strong>R<sub>surface</sub></strong>: Outer radius of the heat source pipe or its insulation (ft)</li>
-              <li><strong>ln()</strong>: Natural logarithm</li>
-              <li><strong>π</strong>: Pi (approx. 3.14159)</li>
+                <li><strong>Q</strong> - Heat loss per unit length (BTU/hr·ft)</li>
+                <li><strong>T</strong> - Temperature (°F)</li>
+                <li><strong>R</strong> - Thermal resistance (hr·ft·°F/BTU)</li>
+                <li><strong>k</strong> - Thermal conductivity (BTU/hr·ft·°F)</li>
+                <li><strong>D</strong> - Diameter (ft)</li>
+                <li><strong>Z</strong> - Depth from surface to centerline (ft)</li>
+                <li><strong>r</strong> - Radius of pipe/insulation (ft)</li>
+                <li><strong>ln()</strong> - Natural logarithm</li>
             </ul>
-
-            <h3>Example Calculation (Parallel Orientation)</h3>
-            <div class="example-calc">
-              <p><strong>Given Inputs:</strong></p>
-              <ul>
-                <li>Heat Source Temp (T<sub>hs</sub>): 350 °F</li>
-                <li>Ground Surface Temp (T<sub>surface</sub>): 50 °F</li>
-                <li>HS Pipe: 8" nominal diameter (OD = 8.625"), 0.322" wall, Carbon Steel (k<sub>pipe</sub> = 26)</li>
-                <li>Insulation: 2" thick, Calcium Silicate (k<sub>ins</sub> = 0.034)</li>
-                <li>Soil: Moist Clay (k<sub>soil</sub> = 0.70)</li>
-                <li>HS Depth (Z<sub>hs</sub>): 4 ft</li>
-                <li>Gas Pipe: 4" nominal diameter (OD = 4.5"), Depth (Z<sub>gas</sub>): 3 ft</li>
-                <li>Parallel Distance (C): 5 ft</li>
-              </ul>
-              <p><strong>1. Calculate Diameters (ft):</strong></p>
-              <ul>
-                <li>D<sub>hs_outer</sub> = 8.625 / 12 = 0.7188 ft</li>
-                <li>D<sub>hs_inner</sub> = (8.625 - 2*0.322) / 12 = 0.6651 ft</li>
-                <li>D<sub>ins_outer</sub> = (8.625 + 2*2) / 12 = 1.0521 ft</li>
-                <li>R<sub>surface</sub> = D<sub>ins_outer</sub> / 2 = 0.5260 ft</li>
-              </ul>
-              <p><strong>2. Calculate Resistances (hr·ft·°F/BTU):</strong></p>
-              <ul>
-                <li>R<sub>pipe_wall</sub> = ln(0.7188 / 0.6651) / (2π * 26) = 0.00048</li>
-                <li>R<sub>insulation</sub> = ln(1.0521 / 0.7188) / (2π * 0.034) = 1.7853</li>
-                <li>R<sub>soil_hs</sub> = ln((2*4 - 0.5260) / 0.5260) / (2π * 0.70) = 0.6015</li>
-                <li><strong>R<sub>total</sub></strong> = 0.00048 + 1.7853 + 0.6015 = <strong>2.3873</strong></li>
-              </ul>
-              <p><strong>3. Calculate Heat Loss (BTU/hr·ft):</strong></p>
-              <ul>
-                <li><strong>Q</strong> = (350 - 50) / 2.3873 = <strong>125.66</strong></li>
-              </ul>
-              <p><strong>4. Calculate Temperature at Gas Line (°F):</strong></p>
-              <ul>
-                <li>D<sub>gas_od</sub> = 4.5 / 12 = 0.375 ft</li>
-                <li>d<sub>source</sub> = sqrt( (5 - 0.375/2)<sup>2</sup> + (3 - 4)<sup>2</sup> ) = 4.915 ft</li>
-                <li>d<sub>image</sub> = sqrt( (5 - 0.375/2)<sup>2</sup> + (3 + 4)<sup>2</sup> ) = 8.508 ft</li>
-                <li><strong>T<sub>gas_line</sub></strong> = 50 + (125.66 / (2π * 0.70)) * ln(8.508 / 4.915) = <strong>65.8 °F</strong></li>
-              </ul>
-            </div>
           </div>
-          
+
         </div>
 
         <div class="form-actions">
-          <button type="button" id="saveButton" class="action-button">Save Assessment</button>
-          <button type="button" id="loadButton" class="action-button">Load Assessment</button>
-          <input type="file" id="loadFile" class="hidden" accept=".json">
+          <button type="button" id="saveButton" class="action-button secondary">Save Assessment</button>
+          <button type="button" id="loadButton" class="action-button secondary">Load Assessment</button>
+          <input type="file" id="loadFile" accept=".json" class="hidden">
         </div>
+
       </form>
     </main>
-  </div>
 
-  <div id="rewordModal" class="modal-overlay hidden">
-    <div class="modal-content">
-      <h3 id="rewordModalTitle">Select a Reworded Version</h3>
-      <div id="rewordOptionsContainer" role="radiogroup" aria-labelledby="rewordModalTitle">
-        <!-- AI-generated options will be injected here -->
-      </div>
-      <div class="modal-actions">
-        <button type="button" id="confirmReword" class="action-button">Select</button>
-        <button type="button" id="cancelReword" class="action-button secondary">Cancel</button>
+    <div id="rewordModal" class="modal-overlay hidden">
+      <div class="modal-content">
+        <h3 id="rewordModalTitle">Choose a Reworded Version</h3>
+        <div id="rewordOptionsContainer">
+          <!-- AI suggestions will be populated here -->
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="cancelReword" class="action-button secondary">Cancel</button>
+          <button type="button" id="confirmReword" class="action-button">Use Selected</button>
+        </div>
       </div>
     </div>
+
   </div>
 <script type="module" src="/index.tsx"></script>
 </body>
