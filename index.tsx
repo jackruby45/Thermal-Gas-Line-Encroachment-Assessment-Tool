@@ -1895,7 +1895,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (typeof data[key] === 'string' || typeof data[key] === 'number') {
         const el = document.getElementById(key) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
         if (el) {
-            el.value = data[key];
+            el.value = String(data[key]);
         }
       }
     }
@@ -2288,7 +2288,7 @@ document.addEventListener('DOMContentLoaded', () => {
             config: { systemInstruction }
           });
           
-          const clarification = response.text;
+          const clarification = response.text ?? 'Could not get clarification.';
           alert(`Clarification:\n\n${clarification}`);
       } catch (error) {
           console.error("AI Clarification Error:", error);
@@ -2677,7 +2677,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return `\\\\ \\parbox[t]{\\dimexpr\\linewidth-9em}{${escapeLatex(text)}}`;
     }
   
-    const formatHeader = (text: string) => `\\subsection*{${text}}`;
     const formatItem = (label: string, value: string) => `\\item[\\textbf{${label}:}] ${value}`;
     const beginList = '\\begin{description}[font=\\normalfont, style=unboxed, leftmargin=0pt]';
     const endList = '\\end{description}';
@@ -2691,8 +2690,8 @@ document.addEventListener('DOMContentLoaded', () => {
 \\begin{document}
 
 \\title{Thermal–Gas Line Encroachment Assessment Report}
-\\author{${escapeLatex(data.engineerName)}}
-\\date{${escapeLatex(data.date)}}
+\\author{${escapeLatex(data.engineerName || 'N/A')}}
+\\date{${escapeLatex(data.date || 'N/A')}}
 \\maketitle
 
 % --- Evaluation Information ---
