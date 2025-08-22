@@ -2288,7 +2288,7 @@ document.addEventListener('DOMContentLoaded', () => {
             config: { systemInstruction }
           });
           
-          const clarification = response.text ?? 'Could not get clarification.';
+          const clarification = response.text !== undefined ? response.text : 'Could not get clarification.';
           alert(`Clarification:\n\n${clarification}`);
       } catch (error) {
           console.error("AI Clarification Error:", error);
@@ -2360,7 +2360,7 @@ document.addEventListener('DOMContentLoaded', () => {
         config: { systemInstruction }
       });
       
-      const reportHtml = response.text;
+      const reportHtml = response.text ?? '';
 
       if(reportContainer) reportContainer.innerHTML = reportHtml;
       if(reportActions) reportActions.classList.remove('hidden');
@@ -2677,7 +2677,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return `\\\\ \\parbox[t]{\\dimexpr\\linewidth-9em}{${escapeLatex(text)}}`;
     }
   
-    const formatItem = (label: string, value: string) => `\\item[\\textbf{${label}:}] ${value}`;
+    const formatItem = (label: string, value: string | undefined | null) => `\\item[\\textbf{${label}:}] ${value ?? 'N/A'}`;
     const beginList = '\\begin{description}[font=\\normalfont, style=unboxed, leftmargin=0pt]';
     const endList = '\\end{description}';
   
