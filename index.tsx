@@ -1200,7 +1200,7 @@ document.addEventListener('DOMContentLoaded', () => {
         addItem(heatSourceContainer, 'Pipe Material', heatSourcePipeMaterialDisplayValue);
         const heatSourceWallThicknessDisplayValue = data.heatSourceWallThickness ? `${data.heatSourceWallThickness} (${data.wallThicknessType})` : 'N/A';
         addItem(heatSourceContainer, 'Pipe Wall Thickness (inches)', heatSourceWallThicknessDisplayValue);
-        const connectionsValueText = data.connectionsValue.join('\n') : 'N/A';
+        const connectionsValueText = data.connectionsValue.length > 0 ? data.connectionsValue.join('\n') : 'N/A';
         const connectionsDisplayValue = connectionsValueText !== 'N/A' ? `${connectionsValueText} (${data.connectionTypesType})` : 'N/A';
         addItem(heatSourceContainer, 'Line connection types', connectionsDisplayValue);
         const insulationTypeDisplayValue = data.insulationType !== 'N/A' ? `${data.insulationType} (${data.insulationTypeType})` : 'N/A';
