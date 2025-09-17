@@ -4,23 +4,32 @@
 */
 import { GoogleGenAI, Type } from "@google/genai";
 
+// Initialize the Gemini AI client. Assumes API_KEY is set in the environment.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+
+// Fix: Moved helper functions to a higher scope to resolve 'Cannot find name' errors.
+const getEl = (id: string) => document.getElementById(id);
+const getVal = (id: string) => (getEl(id) as HTMLInputElement)?.value || '';
+const getSelectedText = (id: string) => {
+    const select = getEl(id) as HTMLSelectElement;
+    if (!select || select.selectedIndex < 0) {
+        return 'N/A';
+    }
+    return select.options[select.selectedIndex].text;
+};
+
+// Fix: Moved `getRadioVal` and `getRadioLabel` to the global scope to be accessible by all functions.
+const getRadioVal = (name: string) => {
+    const checked = document.querySelector<HTMLInputElement>(`input[name="${name}"]:checked`);
+    return checked ? checked.value : '';
+};
+const getRadioLabel = (name: string) => {
+    const checked = document.querySelector<HTMLInputElement>(`input[name="${name}"]:checked`);
+    return checked ? (document.querySelector(`label[for="${checked.id}"]`)?.textContent || 'N/A') : 'N/A';
+};
+
 // Moved from inside DOMContentLoaded to be globally available.
 const getFormData = () => {
-  const getEl = (id: string) => document.getElementById(id);
-  const getVal = (id: string) => (getEl(id) as HTMLInputElement)?.value || '';
-  const getSelectedText = (id: string) => {
-      const select = getEl(id) as HTMLSelectElement;
-      return select.selectedIndex >= 0 ? select.options[select.selectedIndex].text : 'N/A';
-  };
-  const getRadioVal = (name: string) => {
-      const checked = document.querySelector<HTMLInputElement>(`input[name="${name}"]:checked`);
-      return checked ? checked.value : '';
-  };
-  const getRadioLabel = (name: string) => {
-      const checked = document.querySelector<HTMLInputElement>(`input[name="${name}"]:checked`);
-      return checked ? (document.querySelector(`label[for="${checked.id}"]`)?.textContent || 'N/A') : 'N/A';
-  };
-
   const connectionsSelect = getEl('connectionTypes') as HTMLSelectElement;
   const selectedOpts = Array.from(connectionsSelect.selectedOptions).map(opt => opt.text);
   let connectionsValue = selectedOpts.filter(o => o !== 'Other (specify)...');
@@ -35,7 +44,7 @@ const getFormData = () => {
 
   let heatSourceWallThickness = getVal('wallThickness');
   if (heatSourceWallThickness === 'custom') {
-      heatSourceWallThickness = `Other: ${getVal('customWallThickness')}`;
+      heatSourceWallThickness = getVal('customWallThickness');
   }
 
   let insulationType = 'N/A';
@@ -93,7 +102,7 @@ const getFormData = () => {
   }
 
   let insulationConditionSource = getRadioLabel('insulationConditionSource');
-  if (getRadioVal('insulationConditionSource') === 'other') {
+  if (getVal('insulationConditionSource') === 'other') {
     insulationConditionSource = `Other: ${getVal('customInsulationConditionSource')}`;
   }
 
@@ -172,7 +181,7 @@ const getFormData = () => {
       heatLossEvidenceSource,
       heatLossEvidence: getVal('heatLossEvidence'),
       diameterType: getRadioLabel('diameterType'),
-      pipelineDiameter: getSelectedText('pipelineDiameter'),
+      pipelineDiameter: getVal('pipelineDiameter'),
       materialType: getRadioLabel('materialType'),
       heatSourcePipeMaterial,
       wallThicknessType: getRadioLabel('wallThicknessType'),
@@ -181,6 +190,7 @@ const getFormData = () => {
       connectionsValue,
       insulationTypeType: getRadioLabel('insulationTypeType'),
       insulationType,
+      heatSourcePipeInsulationType: getVal('pipeInsulationType'), // Use canonical key for saving
       customInsulationThermalConductivity: getVal('customInsulationThermalConductivity'),
       insulationThickness: getVal('insulationThickness'),
       insulationThicknessType: getRadioLabel('insulationThicknessType'),
@@ -191,10 +201,9 @@ const getFormData = () => {
       additionalInfo: getVal('additionalInfo'),
       // Gas Line
       gasOperatorName,
-      gasDoc: getSelectedText('gasDoc'),
       gasMaxPressure: getVal('gasMaxPressure'),
       gasInstallationYear: getVal('gasInstallationYear'),
-      gasPipelineDiameter: getSelectedText('gasPipelineDiameter'),
+      gasPipelineDiameter: getVal('gasPipelineDiameter'),
       gasPipeSizingStandard: getRadioVal('gasPipeSizingStandard'),
       gasPipeMaterial,
       gasPipeMaterialValue,
@@ -213,11 +222,13 @@ const getFormData = () => {
       parallelCoordinates,
       latitude: orientation === 'perpendicular' ? getVal('latitude') : 'N/A',
       longitude: orientation === 'perpendicular' ? getVal('longitude') : 'N/A',
+      lateralOffset: orientation === 'perpendicular' ? getVal('lateralOffset') : 'N/A',
+      crossingAngle: orientation === 'perpendicular' ? getVal('crossingAngle') : 'N/A',
       // Soil
-      soilType: getSelectedText('soilType').replace(/ \(.*/, ''),
+      soilType: getVal('soilType'),
       soilThermalConductivity: getVal('soilThermalConductivity'),
       soilMoistureContent: getVal('soilMoistureContent'),
-      groundSurfaceTemperature: getVal('groundSurfaceTemperature'),
+      averageGroundTemperature: getVal('averageGroundTemperature'),
       waterInfiltration: getRadioLabel('waterInfiltration'),
       waterInfiltrationComments: getVal('waterInfiltrationComments'),
       heatSourceBeddingType: getRadioVal('heatSourceBeddingType'),
@@ -244,75 +255,409 @@ const getFormData = () => {
   };
 };
 
-// Moved from inside DOMContentLoaded to be globally available.
-interface ScenarioDetails {
-  Q: number;
-  T_gas_line: number;
-  delta_T: number;
-  R_pipe_wall: number;
-  R_insulation: number;
-  R_soil_hs: number;
-  R_total: number;
-  D_hs_outer_ft: number;
-  D_hs_inner_ft: number;
-  D_ins_outer_ft?: number;
-  R_surface_ft: number;
-  x_target_edge: number;
-  y_target_edge: number;
-  r_equiv_ft?: number;
-  R_bedding?: number;
-  R_soil_from_bedding?: number;
+const escapeLatex = (str: string | number | undefined | null): string => {
+    if (str === null || typeof str === 'undefined' || str === '') {
+        return 'N/A';
+    }
+    return String(str)
+        .replace(/&/g, '\\&')
+        .replace(/%/g, '\\%')
+        .replace(/\$/g, '\\$')
+        .replace(/#/g, '\\#')
+        .replace(/_/g, '\\_')
+        .replace(/{/g, '\\{')
+        .replace(/}/g, '\\}')
+        .replace(/~/g, '\\textasciitilde{}')
+        .replace(/\^/g, '\\textasciicircum{}')
+        .replace(/\\/g, '\\textbackslash{}')
+        .replace(/\n/g, '\\\\ ');
+};
+
+const generateLatexReport = (data: ReturnType<typeof getFormData>, asIsResults: any, worstCaseResults: any) => {
+    const tableRow = (key: string, value: any) => `${key} & ${escapeLatex(value)} \\\\`;
+    const multiLineRow = (key: string, value: any) => `${key} & \\parbox[t]{0.6\\textwidth}{${escapeLatex(value)}} \\\\`;
+
+    const preamble = `\\documentclass[11pt, letterpaper]{article}
+\\usepackage[margin=1in]{geometry}
+\\usepackage{amsmath}
+\\usepackage{graphicx}
+\\usepackage{booktabs}
+\\usepackage{longtable}
+\\usepackage{xcolor}
+\\usepackage[hidelinks]{hyperref}
+\\usepackage{fancyhdr}
+\\usepackage{titlesec}
+\\usepackage{enumitem}
+
+\\titlespacing*{\\section}{0pt}{1.5ex plus 0.5ex minus .2ex}{1.5ex plus .2ex}
+\\titlespacing*{\\subsection}{0pt}{1.5ex plus 0.5ex minus .2ex}{1.5ex plus .2ex}
+
+\\pagestyle{fancy}
+\\fancyhf{}
+\\fancyhead[L]{Thermal–Gas Line Encroachment Assessment}
+\\fancyfoot[C]{\\thepage}
+
+\\title{Thermal–Gas Line Encroachment Assessment Report}
+\\author{${escapeLatex(data.engineerName)} \\\\ Rev-2.0, By Tim Bickford}
+\\date{${escapeLatex(data.date)}}
+`;
+
+    const beginDoc = `\\begin{document}
+\\maketitle
+\\thispagestyle{empty}
+\\newpage
+\\tableofcontents
+\\newpage
+`;
+
+    const asIsFinalTemp = !isNaN(asIsResults.T_gas_line_layered) ? asIsResults.T_gas_line_layered : asIsResults.T_gas_line;
+    let worstCaseFinalTemp = NaN;
+    if (worstCaseResults) {
+        worstCaseFinalTemp = !isNaN(worstCaseResults.T_gas_line_layered) ? worstCaseResults.T_gas_line_layered : worstCaseResults.T_gas_line;
+    }
+
+    const summary = `\\section{Executive Summary}
+This report details the thermal analysis of a potential encroachment between a buried heat source (${escapeLatex(data.heatSourceType)}) and a natural gas pipeline. The assessment was conducted using the data provided, based on two-dimensional steady-state heat transfer models for a ${escapeLatex(data.gasLineOrientation)} orientation.
+
+The primary finding for the \\textbf{as-is condition} is a calculated gas line temperature of \\textbf{${asIsFinalTemp.toFixed(1)}~$^{\\circ}$F}, with a ground surface temperature (1 inch below grade, above the heat source) of \\textbf{${asIsResults.T_ground_surface_above_hs.toFixed(1)}~$^{\\circ}$F}.
+${worstCaseResults ? `
+A worst-case scenario, assuming failure or absence of insulation on the heat source line, was also analyzed. This scenario resulted in a calculated gas line temperature of \\textbf{${worstCaseFinalTemp.toFixed(1)}~$^{\\circ}$F} and a surface temperature of \\textbf{${worstCaseResults.T_ground_surface_above_hs.toFixed(1)}~$^{\\circ}$F}.` : ''}
+
+These results are compared against the operational limits of the gas pipeline material and its coating to determine potential risks. Recommendations based on these findings are provided in Section \\ref{sec:recommendations}.
+`;
+
+    const inputData = `\\section{Input Data Summary}
+\\subsection{Evaluation Information}
+\\begin{longtable}{p{0.3\\textwidth} p{0.6\\textwidth}}
+\\toprule
+\\textbf{Parameter} & \\textbf{Value} \\\\
+\\midrule
+\\endhead
+\\bottomrule
+\\endfoot
+${tableRow('Project Name', data.projectName)}
+${tableRow('Project Location', data.projectLocation)}
+${tableRow('Date of Assessment', data.date)}
+${tableRow('Engineer Name', data.engineerName)}
+${tableRow('Evaluator(s)', data.evaluatorNames.join(', '))}
+${multiLineRow('Project Description', data.projectDescription)}
+\\end{longtable}
+
+\\subsection{Heat Source Data}
+\\begin{longtable}{p{0.3\\textwidth} p{0.6\\textwidth}}
+\\toprule
+\\textbf{Parameter} & \\textbf{Value} \\\\
+\\midrule
+\\endhead
+\\bottomrule
+\\endfoot
+${data.isHeatSourceApplicable ? `
+${tableRow('Heat Source Type', data.heatSourceType)}
+${tableRow('Operator Company Name', data.operatorCompanyName)}
+${tableRow('Operating Company Address', data.operatorCompanyAddress)}
+${tableRow('Data Provider Name', data.operatorName)}
+${tableRow('Provider Contact Info', data.operatorContactInfo)}
+${tableRow('811 "DigSafe" Registration', `${data.isRegistered811} (${data.registered811Confirmation})`)}
+${tableRow('Data Confirmation Date', data.confirmationDate)}
+${tableRow('Max Operating Temp ($^{\\circ}$F)', `${data.maxTemp} (${data.tempType})`)}
+${tableRow('Max Operating Pressure (psig)', `${data.maxPressure} (${data.pressureType})`)}
+${tableRow('Line Age (years)', `${data.heatSourceAge} (${data.ageType})`)}
+${multiLineRow('System Duty Cycle', `${data.systemDutyCycle} (${data.systemDutyCycleType})`)}
+${multiLineRow('Pipe Casing / Conduit Info', `${data.pipeCasingInfo} (${data.pipeCasingInfoType})`)}
+${multiLineRow('Evidence of Surface Heat Loss', `${data.heatLossEvidence} (Source: ${data.heatLossEvidenceSource})`)}
+${tableRow('Nominal Diameter (in)', `${getSelectedText('pipelineDiameter')} (${data.diameterType})`)}
+${tableRow('Pipe Material', `${data.heatSourcePipeMaterial} (${data.materialType})`)}
+${tableRow('Pipe Wall Thickness (in)', `${data.heatSourceWallThickness} (${data.wallThicknessType})`)}
+${multiLineRow('Line Connection Types', `${data.connectionsValue.join(', ')} (${data.connectionTypesType})`)}
+${tableRow('Insulation Type', `${data.insulationType} (${data.insulationTypeType})`)}
+${data.insulationType !== 'None' ? tableRow('Insulation Thickness (in)', `${data.insulationThickness} (${data.insulationThicknessType})`) : ''}
+${multiLineRow('Known Insulation Condition', `${data.insulationCondition} (Source: ${data.insulationConditionSource})`)}
+${tableRow('Depth to Centerline (ft)', `${data.heatSourceDepth} (${data.depthType})`)}
+${multiLineRow('Additional Operator Info', data.additionalInfo)}
+` : tableRow('Heat Source Status', 'No applicable heat source selected.')}
+\\end{longtable}
+
+\\subsection{Gas Line Data}
+\\begin{longtable}{p{0.3\\textwidth} p{0.6\\textwidth}}
+\\toprule
+\\textbf{Parameter} & \\textbf{Value} \\\\
+\\midrule
+\\endhead
+\\bottomrule
+\\endfoot
+${tableRow('Operator Name', data.gasOperatorName)}
+${tableRow('Installation Year', data.gasInstallationYear)}
+${tableRow('Max Operating Pressure (psig)', data.gasMaxPressure)}
+${tableRow('Nominal Diameter (in)', getSelectedText('gasPipelineDiameter'))}
+${tableRow('Pipe Sizing Standard', data.gasPipeSizingStandard.toUpperCase())}
+${tableRow('Pipe Material', data.gasPipeMaterial)}
+${data.gasPipeWallThickness !== 'N/A' ? tableRow('Pipe Wall Thickness (in)', data.gasPipeWallThickness) : ''}
+${data.gasPipeSDR !== 'N/A' ? tableRow('Pipe SDR', data.gasPipeSDR) : ''}
+${data.gasCoatingType !== 'N/A' ? tableRow('Coating Type', data.gasCoatingType) : ''}
+${data.gasCoatingMaxTemp !== 'N/A' ? tableRow('Coating Max Temp ($^{\\circ}$F)', data.gasCoatingMaxTemp) : ''}
+${data.gasPipeContinuousLimit !== 'N/A' ? tableRow('Material Continuous Temp Limit ($^{\\circ}$F)', data.gasPipeContinuousLimit) : ''}
+${multiLineRow('Key Material Notes', data.gasPipeNotes)}
+${tableRow('Orientation to Heat Source', data.gasLineOrientation)}
+${tableRow('Depth to Centerline (ft)', data.depthOfBurialGasLine)}
+${data.gasLineOrientation === 'Parallel' ? tableRow('Parallel Centerline Distance (ft)', data.parallelDistance) : ''}
+${data.gasLineOrientation === 'Parallel' ? tableRow('Parallel Length (ft)', data.parallelLength) : ''}
+${data.gasLineOrientation === 'Crossing / Perpendicular' ? tableRow('Lateral Offset (ft)', data.lateralOffset) : ''}
+${data.gasLineOrientation === 'Crossing / Perpendicular' ? tableRow('Crossing Angle (deg)', data.crossingAngle) : ''}
+${(data.latitude !== 'N/A' && data.longitude !== 'N/A') ? tableRow('Intersection Coordinates', `${data.latitude}, ${data.longitude}`) : ''}
+\\end{longtable}
+
+\\subsection{Soil and Bedding Data}
+\\begin{longtable}{p{0.3\\textwidth} p{0.6\\textwidth}}
+\\toprule
+\\textbf{Parameter} & \\textbf{Value} \\\\
+\\midrule
+\\endhead
+\\bottomrule
+\\endfoot
+${tableRow('Native Soil Type', getSelectedText('soilType').replace(/ \\(.*\\)/, ''))}
+${tableRow('Native Soil Thermal Conductivity (BTU/hr$\\cdot$ft$\\cdot$$^{\\circ}$F)', data.soilThermalConductivity)}
+${tableRow('Soil Moisture Content (\\%)', data.soilMoistureContent)}
+${tableRow('Average Ground Temp ($^{\\circ}$F)', data.averageGroundTemperature)}
+${tableRow('Evidence of Water Infiltration', data.waterInfiltration)}
+${multiLineRow('Infiltration Comments', data.waterInfiltrationComments)}
+${tableRow('Heat Source Bedding', data.heatSourceBeddingType === 'sand' ? `Sand, k = ${data.heatSourceBeddingUseCustomK === 'yes' ? data.heatSourceBeddingCustomK : '0.20'}` : 'Native Soil')}
+${tableRow('Gas Line Bedding', data.gasLineBeddingType === 'sand' ? `Sand, k = ${data.gasBeddingUseCustomK === 'yes' ? data.gasBeddingCustomK : '0.20'}` : 'Native Soil')}
+\\end{longtable}
+
+\\subsection{Field Visit Data}
+\\begin{longtable}{p{0.3\\textwidth} p{0.6\\textwidth}}
+\\toprule
+\\textbf{Parameter} & \\textbf{Value} \\\\
+\\midrule
+\\endhead
+\\bottomrule
+\\endfoot
+${tableRow('Date of Visit', data.visitDate)}
+${multiLineRow('Personnel on Site', data.sitePersonnel)}
+${multiLineRow('Weather and Site Conditions', data.siteConditions)}
+${multiLineRow('Field Observations and Notes', data.fieldObservations)}
+\\end{longtable}
+`;
+
+    const analysis = `\\section{Heat Transfer Analysis}
+\\subsection{Governing Equations}
+The analysis is based on a two-dimensional, steady-state heat transfer model using the thermal resistance analogy.
+
+\\subsubsection{Total Heat Loss (Q)}
+The rate of heat loss per unit length from the heat source is calculated as the temperature difference divided by the total thermal resistance.
+\\begin{equation}
+Q = \\frac{T_{hs} - T_{surface}}{R_{total}}
+\end{equation}
+
+\\subsubsection{Thermal Resistances (R)}
+The total resistance is the sum of component resistances from the pipe interior to the ground surface.
+\\begin{align}
+R_{total} &= R_{pipe} + R_{ins} + R_{bed,hs} + R_{soil} \\\\
+R_{pipe} &= \\frac{\\ln(D_{hs,o} / D_{hs,i})}{2\\pi k_{pipe}} && \\text{(Pipe Wall)} \\\\
+R_{ins} &= \\frac{\\ln(D_{ins,o} / D_{hs,o})}{2\\pi k_{ins}} && \\text{(Insulation)} \\\\
+R_{bed,hs} &= \\frac{\\ln(D_{bed,o} / D_{ins,o})}{2\\pi k_{bed,hs}} && \\text{(Heat Source Bedding)} \\\\
+R_{soil} &= \\frac{\\ln((2Z_{hs} - r_{soil,i}) / r_{soil,i})}{2\\pi k_{soil}} && \\text{(Soil, Method of Images)}
+\end{align}
+
+\\subsubsection{Gas Line Temperature ($T_{gas}$)}
+The temperature at the gas line is the sum of the ambient ground temperature and the temperature rise caused by the heat source. This base calculation assumes a homogeneous soil environment.
+
+\\textbf{Perpendicular/Crossing Orientation ($T_{perp}$):}
+\\begin{equation}
+T_{perp} = T_{surface} + \\frac{Q}{2\\pi k_{soil}} \\ln\\left(\\frac{Z_{hs} + Z_{gas}}{D}\\right)
+\end{equation}
+Where the true separation distance $D = \\sqrt{(Z_{hs} - Z_{gas})^2 + C_{lat}^2}$.
+
+\\textbf{Parallel Orientation ($T_{para}$):}
+\\begin{equation}
+T_{para} = T_{surface} + \\frac{Q}{2\\pi k_{soil}} \\ln\\left(\\frac{d_{image}}{d_{source}}\\right)
+\end{equation}
+Where $d_{source} = \\sqrt{(Z_{hs} - Z_{gas})^2 + C^2}$ and $d_{image} = \\sqrt{(Z_{hs} + Z_{gas})^2 + C^2}$.
+
+\\textbf{Blended Model for Angled Crossings ($0^{\\circ} < \\theta < 90^{\\circ}$):}
+\\begin{equation}
+T_{gas,homo} = w \\cdot T_{perp} + (1-w) \\cdot T_{para}, \\quad \\text{where } w = \\sin(\\theta)
+\end{equation}
+
+\\subsubsection{Gas Line Bedding Correction ($\\Delta T_{bed}$)}
+A correction is applied if the gas line bedding material differs from the native soil.
+\\begin{equation}
+\\Delta T_{bed} = \\frac{Q}{2\\pi} \\ln\\left(\\frac{r_{b}}{r_{g}}\\right) \\left(\\frac{1}{k_{bed,gas}} - \\frac{1}{k_{soil}}\\right)
+\end{equation}
+The final temperature is then $T_{gas,layered} = T_{gas,homo} + \\Delta T_{bed}$.
+
+\\subsubsection{Ground Surface Temperature ($T_{surf,hs}$)}
+The temperature at y=1 inch below the surface, directly above the heat source.
+\\begin{equation}
+T_{surf,hs} = T_{surface} + \\frac{Q}{2\\pi k_{soil}} \\ln\\left(\\frac{y + Z_{hs}}{Z_{hs} - y}\\right)
+\end{equation}
+
+\\subsection{Variable Definitions}
+\\begin{longtable}{l p{0.5\\textwidth} l}
+\\toprule
+\\textbf{Symbol} & \\textbf{Description} & \\textbf{Units} \\\\
+\\midrule
+\\endhead
+\\bottomrule
+\\endfoot
+$Q$ & Heat loss per unit length & BTU/hr$\\cdot$ft \\\\
+$T_{hs}$ & Temperature of heat source fluid & $^{\\circ}$F \\\\
+$T_{surface}$ & Average ambient ground temperature & $^{\\circ}$F \\\\
+$T_{gas}$ & Temperature at gas line & $^{\\circ}$F \\\\
+$R$ & Thermal resistance per unit length & hr$\\cdot$ft$\\cdot$$^{\\circ}$F/BTU \\\\
+$k$ & Thermal conductivity & BTU/hr$\\cdot$ft$\\cdot$$^{\\circ}$F \\\\
+$D$ & Diameter & ft \\\\
+$r$ & Radius & ft \\\\
+$Z$ & Depth to centerline from ground surface & ft \\\\
+$C$ & Centerline horizontal separation (parallel) & ft \\\\
+$C_{lat}$ & Lateral offset at crossing point (perpendicular) & ft \\\\
+$D$ & True centerline separation at crossing & ft \\\\
+$d_{source}$ & Direct distance between pipes (parallel) & ft \\\\
+$d_{image}$ & Distance from gas line to heat source's thermal image & ft \\\\
+$\\theta$ & Crossing angle (90$^{\\circ}$ = perpendicular) & degrees \\\\
+$y$ & Depth for surface temp calc (1 inch) & ft \\\\
+\\bottomrule
+\\caption{Subscripts: hs=heat source, gas=gas line, ins=insulation, bed=bedding, o=outer, i=inner, homo=homogeneous, perp=perpendicular, para=parallel} \\\\
+\\end{longtable}
+`;
+
+    const createCalcWalkthrough = (results: any, title: string) => {
+        if (!results) return '';
+        const { R_pipe_wall, R_insulation, R_bedding_hs, R_soil_hs, R_total, Q, T_gas_line, T_gas_line_layered, T_ground_surface_above_hs, separation_distance, orientation_formula_used, inputs } = results;
+
+        return `
+\\subsubsection{${title}}
+This section details the step-by-step calculation based on the input parameters for this scenario.
+
+\\textbf{1. Thermal Resistances (hr$\\cdot$ft$\\cdot$$^{\\circ}$F/BTU)}
+The total thermal resistance from the heat source fluid to the ambient soil is the sum of the resistances of each layer.
+
+\\begin{itemize}[leftmargin=*]
+    \\item $R_{pipe}$: Heat source pipe wall resistance.
+    \\begin{align*}
+        R_{pipe} &= \\frac{\\ln(${inputs.D_hs_outer.toFixed(3)} / ${inputs.D_hs_inner.toFixed(3)})}{2\\pi \\times ${inputs.k_pipe.toFixed(2)}} = \\mathbf{${R_pipe_wall.toFixed(4)}}
+    \\end{align*}
+    \\item $R_{ins}$: Insulation resistance.
+    \\begin{align*}
+        R_{ins} &= ${R_insulation > 0 ? `\\frac{\\ln(${inputs.D_ins_outer.toFixed(3)} / ${inputs.D_hs_outer.toFixed(3)})}{2\\pi \\times ${inputs.k_ins.toFixed(4)}} = \\mathbf{${R_insulation.toFixed(4)}}` : `\\mathbf{0.0000} \\text{ (No insulation in this scenario)}`}
+    \\end{align*}
+    \\item $R_{bed,hs}$: Heat source bedding resistance.
+    \\begin{align*}
+        R_{bed,hs} &= ${R_bedding_hs > 0 ? `\\frac{\\ln(${inputs.D_bed_outer.toFixed(3)} / ${inputs.D_ins_outer.toFixed(3)})}{2\\pi \\times ${inputs.k_bed_hs.toFixed(2)}} = \\mathbf{${R_bedding_hs.toFixed(4)}}` : `\\mathbf{0.0000} \\text{ (No bedding specified)}`}
+    \\end{align*}
+    \\item $R_{soil}$: Surrounding soil resistance, using the method of images.
+    \\begin{align*}
+        R_{soil} &= \\frac{\\ln((2 \\times ${inputs.Z_hs.toFixed(2)} - ${inputs.r_soil_i.toFixed(3)}) / ${inputs.r_soil_i.toFixed(3)})}{2\\pi \\times ${inputs.k_soil.toFixed(2)}} = \\mathbf{${R_soil_hs.toFixed(4)}}
+    \\end{align*}
+    \\item \\textbf{$R_{total}$} = $${R_pipe_wall.toFixed(4)} + ${R_insulation.toFixed(4)} + ${R_bedding_hs.toFixed(4)} + ${R_soil_hs.toFixed(4)} = \\mathbf{${R_total.toFixed(4)}}$
+\\end{itemize}
+
+\\textbf{2. Heat Loss (BTU/hr$\\cdot$ft)}
+Using the total resistance, the heat loss per unit length of the source is calculated.
+\\begin{align*}
+    Q &= \\frac{T_{hs} - T_{surface}}{R_{total}} = \\frac{${inputs.T_hs.toFixed(1)} - ${inputs.T_surface.toFixed(1)}}{${R_total.toFixed(4)}} = \\mathbf{${Q.toFixed(2)}}
+\\end{align*}
+
+\\textbf{3. Gas Line Temperature - Homogeneous Soil ($T_{gas,homo}$)}
+The temperature of the gas line is first calculated assuming it is surrounded by native soil.
+\\begin{itemize}[leftmargin=*]
+    \\item Geometry: Based on a \\textbf{${escapeLatex(orientation_formula_used)}} model, the effective separation distance is \\textbf{${separation_distance.toFixed(2)} ft}.
+    \\item Temperature Rise:
+    \\begin{align*}
+      \\Delta T_{soil} &= T_{gas,homo} - T_{surface} = \\mathbf{${(T_gas_line - inputs.T_surface).toFixed(1)}}~^{\\circ}\\text{F}
+    \\end{align*}
+    \\item Homogeneous Temperature:
+    \\begin{align*}
+        T_{gas,homo} &= T_{surface} + \\Delta T_{soil} = ${inputs.T_surface.toFixed(1)} + ${(T_gas_line - inputs.T_surface).toFixed(1)} = \\mathbf{${T_gas_line.toFixed(1)}}~^{\\circ}\\text{F}
+    \\end{align*}
+\\end{itemize}
+
+${!isNaN(T_gas_line_layered) ? `
+\\textbf{4. Gas Line Bedding Correction ($\\Delta T_{bed}$)}
+A correction is applied to account for the different thermal conductivity of the gas line bedding.
+\\begin{itemize}[leftmargin=*]
+    \\item Bedding Correction:
+    \\begin{align*}
+        \\Delta T_{bed} &= \\frac{${Q.toFixed(2)}}{2\\pi} \\ln\\left(\\frac{${inputs.r_b.toFixed(3)}}{${inputs.r_g.toFixed(3)}}\\right) \\left(\\frac{1}{${inputs.k_bed_gas.toFixed(2)}} - \\frac{1}{${inputs.k_soil.toFixed(2)}}\\right) = \\mathbf{${(T_gas_line_layered - T_gas_line).toFixed(1)}}~^{\\circ}\\text{F}
+    \\end{align*}
+\\end{itemize}
+` : ''}
+
+\\textbf{5. Final Temperatures ($^{\\circ}$F)}
+\\begin{itemize}[leftmargin=*]
+${!isNaN(T_gas_line_layered) ? `
+    \\item \\textbf{Final Gas Line Temp (Layered Soil)}, $T_{gas,layered} = T_{gas,homo} + \\Delta T_{bed} = ${T_gas_line.toFixed(1)} + ${(T_gas_line_layered - T_gas_line).toFixed(1)} = \\mathbf{${T_gas_line_layered.toFixed(1)}}$
+` : `
+    \\item \\textbf{Final Gas Line Temp (Homogeneous Soil)}, $T_{gas,homo} = \\mathbf{${T_gas_line.toFixed(1)}}$
+`}
+    \\item Ground Surface Temp (1" deep), $T_{surf,hs} = \\mathbf{${T_ground_surface_above_hs.toFixed(1)}}$
+\\end{itemize}
+`;
+    };
+
+    const calcSection = `\\subsection{Calculation Walkthrough}
+${createCalcWalkthrough(asIsResults, 'As-Is Scenario')}
+${worstCaseResults ? `\\vspace{1cm} ${createCalcWalkthrough(worstCaseResults, 'Worst-Case Scenario (Insulation Failure)')}` : ''}
+`;
+
+    const gasLineTempRows = !isNaN(asIsResults.T_gas_line_layered)
+        ? `Gas Line Temp (Homogeneous) ($^{\\circ}$F) & ${asIsResults.T_gas_line.toFixed(1)} & ${worstCaseResults ? worstCaseResults.T_gas_line.toFixed(1) : ''} \\\\
+\\textbf{Gas Line Temp (with Bedding) ($^{\\circ}$F)} & \\textbf{${asIsResults.T_gas_line_layered.toFixed(1)}} & ${worstCaseResults && !isNaN(worstCaseResults.T_gas_line_layered) ? `\\textbf{${worstCaseResults.T_gas_line_layered.toFixed(1)}}` : ''}`
+        : `\\textbf{Gas Line Temp ($^{\\circ}$F)} & \\textbf{${asIsResults.T_gas_line.toFixed(1)}} & ${worstCaseResults ? `\\textbf{${worstCaseResults.T_gas_line.toFixed(1)}}` : ''}`;
+
+    const resultsSummary = `\\subsection{Results Summary}
+\\begin{table}[h!]
+\\centering
+\\caption{Summary of Calculated Thermal Analysis Results}
+\\begin{tabular}{lcc}
+\\toprule
+\\textbf{Parameter} & \\textbf{As-Is Scenario} & ${worstCaseResults ? '\\textbf{Worst-Case Scenario}' : ''} \\\\
+\\midrule
+Centerline Separation, D (ft) & ${asIsResults.separation_distance.toFixed(2)} & ${worstCaseResults ? worstCaseResults.separation_distance.toFixed(2) : ''} \\\\
+${data.gasLineOrientation === 'Crossing / Perpendicular' ? `Crossing Angle (deg) & ${escapeLatex(data.crossingAngle)} & ${worstCaseResults ? escapeLatex(data.crossingAngle) : ''} \\\\` : ''}
+Heat Loss, Q (BTU/hr$\\cdot$ft) & ${asIsResults.Q.toFixed(2)} & ${worstCaseResults ? worstCaseResults.Q.toFixed(2) : ''} \\\\
+${gasLineTempRows} \\\\
+Surface Temp, 1" deep ($^{\\circ}$F) & ${asIsResults.T_ground_surface_above_hs.toFixed(1)} & ${worstCaseResults ? worstCaseResults.T_ground_surface_above_hs.toFixed(1) : ''} \\\\
+\\bottomrule
+\\end{tabular}
+\\end{table}
+`;
+
+    const recommendations = `\\section{Recommendations} \\label{sec:recommendations}
+${(data.recommendations && data.recommendations.filter(r => r.trim()).length > 0) ? 
+`\\begin{enumerate}[label=\\arabic*.]
+${data.recommendations.filter(r => r.trim()).map(rec => `    \\item ${escapeLatex(rec)}`).join('\n')}
+\\end{enumerate}` : 
+'No specific recommendations were provided.'
 }
+`;
 
-const createResizableImage = (src: string, container: HTMLElement) => {
-  const wrapper = document.createElement('div');
-  wrapper.className = 'resizable-image-wrapper';
+    const conclusion = `\\section{Conclusion}
+This report provides a screening-level assessment based on analytical models. The results are subject to the assumptions and limitations outlined in the analysis, including the assumption of homogeneous soil and steady-state conditions. For critical applications, further analysis using numerical methods like Finite Element Analysis (FEA) may be warranted.
+`;
 
-  const img = document.createElement('img');
-  img.src = src;
-  img.alt = 'Field visit photo preview';
-  
-  const handle = document.createElement('div');
-  handle.className = 'resize-handle';
-  
-  wrapper.appendChild(img);
-  wrapper.appendChild(handle);
-  container.appendChild(wrapper);
-
-  // --- Resizing Logic ---
-  const startResize = (e: MouseEvent) => {
-      e.preventDefault();
-      
-      let startX = e.clientX;
-      let startY = e.clientY;
-      let startWidth = wrapper.offsetWidth;
-      let startHeight = wrapper.offsetHeight;
-
-      const doResize = (moveEvent: MouseEvent) => {
-          const newWidth = startWidth + (moveEvent.clientX - startX);
-          const newHeight = startHeight + (moveEvent.clientY - startY);
-          wrapper.style.width = `${newWidth}px`;
-          wrapper.style.height = `${newHeight}px`;
-      };
-      
-      const stopResize = () => {
-          document.documentElement.removeEventListener('mousemove', doResize, false);
-          document.documentElement.removeEventListener('mouseup', stopResize, false);
-          document.body.classList.remove('resizing');
-      };
-
-      document.documentElement.addEventListener('mousemove', doResize, false);
-      document.documentElement.addEventListener('mouseup', stopResize, false);
-      document.body.classList.add('resizing');
-  };
-
-  handle.addEventListener('mousedown', startResize, false);
+    const endDoc = `\\end{document}`;
+    
+    return preamble + beginDoc + summary + inputData + analysis + calcSection + resultsSummary + recommendations + conclusion + endDoc;
 };
 
 document.addEventListener('DOMContentLoaded', () => {
   let isAdminAuthenticated = false;
   let targetTextareaIdForReword: string | null = null;
   let recommendationCounter = 0;
+
+  const getPhotosData = () => {
+    const photoItems = document.querySelectorAll('.photo-item');
+    return Array.from(photoItems).map(item => {
+        const img = item.querySelector('img');
+        // FIX: The textarea for a photo description should have its own class to avoid conflicts.
+        const textarea = item.querySelector<HTMLTextAreaElement>('.photo-description');
+        return {
+            src: img?.src || '',
+            description: textarea?.value || ''
+        };
+    });
+  };
 
   // --- Final Report Questionnaire State ---
   const reportQuestions: string[] = [
@@ -336,6 +681,324 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentQuestionIndex = -1;
   let questionAnswers: { question: string; answer: string; originalQuestion: string }[] = [];
   let lastCalculationResults: any = null;
+
+  // --- FIX: Add missing functions for Final Report tab ---
+  const displayQuestion = () => {
+    const questionTextEl = document.getElementById('question-text');
+    const answerTextarea = document.getElementById('question-answer') as HTMLTextAreaElement;
+    const progressText = document.getElementById('question-progress-text');
+    const progressBar = document.getElementById('progress-bar');
+    const nextBtn = document.getElementById('next-question-btn') as HTMLButtonElement;
+    const prevBtn = document.getElementById('prev-question-btn') as HTMLButtonElement;
+    
+    if (!questionTextEl || !answerTextarea || !progressText || !progressBar || !nextBtn || !prevBtn) return;
+    
+    if (currentQuestionIndex >= 0 && currentQuestionIndex < reportQuestions.length) {
+        const currentQ = reportQuestions[currentQuestionIndex];
+        questionTextEl.textContent = currentQ;
+        
+        const savedAnswer = questionAnswers.find(qa => qa.originalQuestion === currentQ);
+        answerTextarea.value = savedAnswer ? savedAnswer.answer : '';
+        answerTextarea.dispatchEvent(new Event('input')); // Trigger auto-resize
+
+        progressText.textContent = `Question ${currentQuestionIndex + 1} of ${reportQuestions.length}`;
+        const progressPercentage = ((currentQuestionIndex + 1) / reportQuestions.length) * 100;
+        progressBar.style.width = `${progressPercentage}%`;
+        
+        if (currentQuestionIndex === reportQuestions.length - 1) {
+            nextBtn.textContent = 'Generate Report';
+        } else {
+            nextBtn.textContent = 'Next Question';
+        }
+
+        prevBtn.disabled = currentQuestionIndex === 0;
+    }
+  };
+
+  const saveCurrentAnswer = () => {
+    if (currentQuestionIndex < 0 || currentQuestionIndex >= reportQuestions.length) return;
+    const currentQ = reportQuestions[currentQuestionIndex];
+    const answer = (document.getElementById('question-answer') as HTMLTextAreaElement).value;
+    
+    const existingIndex = questionAnswers.findIndex(qa => qa.originalQuestion === currentQ);
+    if (existingIndex > -1) {
+      questionAnswers[existingIndex].answer = answer;
+      questionAnswers[existingIndex].question = document.getElementById('question-text')?.textContent || currentQ;
+    } else {
+      questionAnswers.push({
+        originalQuestion: currentQ,
+        question: document.getElementById('question-text')?.textContent || currentQ,
+        answer: answer
+      });
+    }
+  };
+
+  const generateReport = async () => {
+    const container = document.getElementById('generated-report-container');
+    const contentWrapper = document.getElementById('final-report-content');
+    const loadingEl = document.getElementById('report-loading');
+
+    if (!container || !contentWrapper || !loadingEl) return;
+    
+    contentWrapper.classList.add('hidden');
+    loadingEl.classList.remove('hidden');
+
+    try {
+      const formData = getFormData();
+      const photosData = getPhotosData();
+
+      const photosForPrompt = photosData.map((p, index) => ({
+        photoNumber: index + 1,
+        description: p.description
+      }));
+      
+      const prompt = `Generate a comprehensive engineering assessment report based on the following data.
+The report should be well-structured with clear sections, headings, and bullet points, formatted as clean HTML.
+It should identify potential risks based on the provided data and questionnaire answers, and provide actionable, specific recommendations for mitigation, monitoring, or further analysis.
+The tone should be professional and technical, suitable for an engineering audience.
+Start with a title and a summary section.
+
+At the end of the report, create a section titled "Appendices", and within it, a subsection titled "Field Photos".
+For each photo listed in the "Field Photos Data", create an entry in the report. The format for each photo entry should be:
+<h3>Photo #[Photo Number]: [Photo Description]</h3>
+[IMAGE_PLACEHOLDER_#[Photo Number]]
+
+Project Data:
+${JSON.stringify(formData, null, 2)}
+      
+Calculation Results (if available):
+${JSON.stringify(lastCalculationResults, null, 2)}
+      
+Questionnaire Answers:
+${JSON.stringify(questionAnswers, null, 2)}
+
+Field Photos Data:
+${photosData.length > 0 ? JSON.stringify(photosForPrompt, null, 2) : 'No photos were provided.'}
+      `;
+
+      const systemInstruction = `You are an expert engineering consultant specializing in pipeline integrity and thermal analysis for gas distribution systems. Your task is to generate a formal assessment report from the provided data.
+
+When generating the final assessment report, you must adhere to the following strict operational limits and functional requirements:
+
+**1. Pipeline Integrity Analysis Rules:**
+*   **For All Plastic Pipe Types (e.g., HDPE, MDPE, Aldyl-A):**
+    *   The maximum allowable operational temperature is **70°F**.
+    *   **Reasoning:** Temperatures exceeding 70°F can result in a required de-rating of the pipe's Maximum Allowable Operating Pressure (MAOP) and can accelerate material degradation.
+    *   **Required Action:** If the calculated gas line temperature meets or exceeds 70°F, you must state that this limit has been exceeded and recommend that a separate, detailed evaluation be conducted to assess the impact on MAOP and long-term pipe integrity.
+*   **For All Steel Pipe Types (Coated, Unprotected Coated, and Bare):**
+    *   The maximum allowable temperature is **150°F**.
+    *   **Reasoning:** Temperatures greater than 150°F can damage the adhesive that bonds the protective coating to the steel pipe, potentially leading to coating disbondment and an increased risk of corrosion.
+    *   **Required Action:** If the calculated gas line temperature meets or exceeds 150°F, you must state that this limit has been exceeded and recommend that a separate, detailed evaluation of the coating and pipeline integrity be conducted.
+
+**2. Report Functionality Requirements:**
+Editable Report Sections: When generating the final HTML report, ensure that all primary text-based sections (e.g., Executive Summary, Recommendations, Field Observations, Conclusion) are editable by the user directly in the browser. Achieve this by adding the contenteditable="true" attribute to the main container elements (e.g., <p>, <li>, <div>) for these sections.
+PDF Export Capability: At the top of the generated report, include an action button labeled "Save as PDF". This button, when clicked, must execute the window.print() JavaScript function. Accompany the button with a brief instruction, such as: "To save as a PDF, click the button and select 'Save as PDF' from your browser's print destination options." You must also embed CSS within a <style> tag in the report's HTML to hide the button and this instruction during the printing process using an @media print query.
+
+Important Constraint: Your sole function is to provide analysis and recommendations based on these rules. Do not suggest, perform, or otherwise indicate any changes to the assessment tool, its code, its user interface, or its underlying calculations. Your scope is strictly limited to the analytical task described.`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          systemInstruction,
+        }
+      });
+      
+      let reportHtml = response.text || '';
+
+      // FIX: The model may wrap the HTML output in markdown fences (e.g., ```html...```).
+      // This cleans the response to ensure it can be rendered as proper HTML.
+      if (reportHtml.startsWith('```html')) {
+        reportHtml = reportHtml.substring('```html'.length, reportHtml.length - 3).trim();
+      } else if (reportHtml.startsWith('```')) {
+        reportHtml = reportHtml.substring(3, reportHtml.length - 3).trim();
+      }
+      
+      if (photosData.length > 0) {
+        photosData.forEach((photo, index) => {
+            if (photo.src) {
+                const placeholder = `[IMAGE_PLACEHOLDER_#${index + 1}]`;
+                // Sanitize description for alt text
+                const sanitizedDescription = photo.description.replace(/"/g, '&quot;');
+                const imgTag = `<img src="${photo.src}" alt="${sanitizedDescription}" style="max-width: 100%; height: auto; border: 1px solid #ccc; margin-top: 0.5rem;">`;
+                const regex = new RegExp(placeholder.replace(/\[/g, "\\[").replace(/\]/g, "\\]").replace(/#/g, "\\#"), "g");
+                reportHtml = reportHtml.replace(regex, imgTag);
+            }
+        });
+      }
+
+      container.innerHTML = reportHtml;
+
+      // --- FIX: Override the default print functionality with a robust PDF generator ---
+      const pdfButton = Array.from(container.querySelectorAll('button')).find(
+        btn => btn.textContent?.trim() === 'Save as PDF'
+      );
+
+      if (pdfButton) {
+        // Hijack the button's click event for a better PDF export.
+        // This replaces the model's default onclick="window.print()" which can be unreliable.
+        pdfButton.removeAttribute('onclick');
+        pdfButton.addEventListener('click', () => {
+          const originalButtonText = pdfButton.textContent;
+          pdfButton.textContent = 'Generating PDF...';
+          pdfButton.disabled = true;
+          
+          // Find the button's container to hide it and any accompanying instructions.
+          const buttonContainer = pdfButton.parentElement;
+          if (buttonContainer) {
+            buttonContainer.style.display = 'none';
+          }
+
+          const opt = {
+            margin:       [0.5, 0.5, 0.5, 0.5],
+            filename:     `final-report-${new Date().toISOString().split('T')[0]}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, letterRendering: true, scrollY: 0 },
+            jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' },
+            pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+          };
+
+          (window as any).html2pdf().from(container).set(opt).save().then(() => {
+            pdfButton.textContent = originalButtonText;
+            pdfButton.disabled = false;
+            if (buttonContainer) {
+              buttonContainer.style.display = '';
+            }
+          }).catch((err: Error) => {
+              console.error("Failed to export Final Report PDF:", err);
+              alert("An error occurred during PDF export. Please check the console for details.");
+              pdfButton.textContent = originalButtonText;
+              pdfButton.disabled = false;
+              if (buttonContainer) {
+                buttonContainer.style.display = '';
+              }
+          });
+        });
+      }
+
+      container.classList.remove('hidden');
+      // Re-run the tab handler to add the "Generate New" button to the new report
+      handleFinalReportTabClick();
+
+    } catch(error) {
+      console.error("Report Generation Error:", error);
+      container.innerHTML = `<p class="error-message">Failed to generate report. Please check your API key and the browser console for details. Error: ${error instanceof Error ? error.message : 'Unknown error'}</p>`;
+      container.classList.remove('hidden');
+    } finally {
+      loadingEl.classList.add('hidden');
+    }
+  };
+
+  const handleNextQuestion = async () => {
+    saveCurrentAnswer();
+    
+    if (currentQuestionIndex < reportQuestions.length - 1) {
+      currentQuestionIndex++;
+      displayQuestion();
+    } else {
+      await generateReport();
+    }
+  };
+
+  const handlePrevQuestion = () => {
+    saveCurrentAnswer();
+
+    if (currentQuestionIndex > 0) {
+      currentQuestionIndex--;
+      displayQuestion();
+    }
+  };
+
+  const startQuestionnaire = () => {
+    const startWrapper = document.getElementById('final-report-start-wrapper');
+    const questionnaireWrapper = document.getElementById('final-report-questionnaire-wrapper');
+    
+    if (startWrapper && questionnaireWrapper) {
+      startWrapper.classList.add('hidden');
+      questionnaireWrapper.classList.remove('hidden');
+      currentQuestionIndex = 0;
+      displayQuestion();
+    }
+  };
+
+  const handleFinalReportTabClick = () => {
+    const adminMessage = document.getElementById('report-admin-only-message');
+    const contentWrapper = document.getElementById('final-report-content');
+    const startWrapper = document.getElementById('final-report-start-wrapper');
+    const questionnaireWrapper = document.getElementById('final-report-questionnaire-wrapper');
+    const generatedReportContainer = document.getElementById('generated-report-container');
+    const loadingEl = document.getElementById('report-loading');
+
+    if (!adminMessage || !contentWrapper || !startWrapper || !questionnaireWrapper || !generatedReportContainer || !loadingEl) return;
+
+    adminMessage.classList.toggle('hidden', isAdminAuthenticated);
+    contentWrapper.classList.toggle('hidden', !isAdminAuthenticated);
+    
+    if (!isAdminAuthenticated) {
+        return;
+    }
+
+    // If a report is already displayed, add a "generate new" button to it.
+    if (!generatedReportContainer.classList.contains('hidden')) {
+        if (!document.getElementById('report-actions-wrapper')) {
+            const actionsWrapper = document.createElement('div');
+            actionsWrapper.id = 'report-actions-wrapper';
+            const regenerateButton = document.createElement('button');
+            regenerateButton.textContent = 'Generate New Report';
+            regenerateButton.className = 'action-button';
+            regenerateButton.onclick = () => {
+                // Reset state
+                generatedReportContainer.classList.add('hidden');
+                generatedReportContainer.innerHTML = '';
+                currentQuestionIndex = -1;
+                questionAnswers = [];
+                // Re-run this handler to show the start options
+                handleFinalReportTabClick();
+            };
+            actionsWrapper.appendChild(regenerateButton);
+            generatedReportContainer.prepend(actionsWrapper);
+        }
+        return; // Don't proceed to show other things
+    }
+    
+    // If loading, do nothing
+    if (!loadingEl.classList.contains('hidden')) {
+        return;
+    }
+
+    if (!lastCalculationResults) {
+        startWrapper.innerHTML = `<p>Please run a calculation on the "Calculation" tab before generating a report.</p>`;
+        startWrapper.classList.remove('hidden');
+        questionnaireWrapper.classList.add('hidden');
+    } else {
+        if (currentQuestionIndex < 0) {
+            // Questionnaire has not been started yet, show the generation options.
+            startWrapper.innerHTML = `
+                <p>The calculation has been completed. You can now generate the final assessment report.</p>
+                <div class="form-group-info" style="margin-top: 1rem;">
+                    You can generate a report directly, or answer guided questions to add more detail for a more thorough analysis.
+                </div>
+                <div class="report-generation-options">
+                    <button id="generateQuickReportButton" class="action-button">Generate Report Now</button>
+                    <button id="startQuestionnaireButton" class="action-button secondary">Start Guided Report</button>
+                </div>
+            `;
+            document.getElementById('startQuestionnaireButton')?.addEventListener('click', startQuestionnaire);
+            document.getElementById('generateQuickReportButton')?.addEventListener('click', () => {
+                questionAnswers = []; // Clear answers for a non-guided report
+                generateReport();
+            });
+
+            startWrapper.classList.remove('hidden');
+            questionnaireWrapper.classList.add('hidden');
+        } else {
+            // Questionnaire is already in progress, just show it.
+            startWrapper.classList.add('hidden');
+            questionnaireWrapper.classList.remove('hidden');
+        }
+    }
+  };
+  // --- END OF FIX ---
 
 
   // --- Tab Navigation ---
@@ -485,7 +1148,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (operatorCompanyAddressLabel) operatorCompanyAddressLabel.textContent = `${sourceName} - Operating Company Address:`;
     if (operatorContactInfoLabel) operatorContactInfoLabel.textContent = `${sourceName} - Contact Info (Phone or Email):`;
     if (confirmationDateLabel) confirmationDateLabel.textContent = `${sourceName} Data Confirmation Date:`;
-    if (maxTempLabel) maxTempLabel.textContent = `${sourceName} Max Operating Temp (in Deg F) confirmed by the operator:`;
+    if (maxTempLabel) maxTempLabel.textContent = `${sourceName} Max Operating Temp (°F) confirmed by the operator:`;
     if (maxPressureLabel) maxPressureLabel.textContent = `${sourceName} Max Operating Pressure in psig:`;
     if (heatSourceAgeLabel) heatSourceAgeLabel.textContent = `${sourceName} Line Age (years):`;
     if (systemDutyCycleLabel) systemDutyCycleLabel.textContent = `${sourceName} System Duty Cycle / Uptime:`;
@@ -857,11 +1520,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const insulationThermalConductivityDisplay = document.getElementById('insulationThermalConductivityDisplay');
 
   const updateInsulationOptions = (heatSourceType: string | undefined) => {
+      // FIX: Preserve the current selection when options are repopulated to prevent it from being cleared by event triggers.
+      const currentValue = pipeInsulationTypeSelect.value;
+  
       let options: { [key: string]: { name: string; thermalConductivity: number } } = {};
       if (heatSourceType === 'steam' || heatSourceType === 'superHeatedHotWater') {
           options = insulationData.steam;
       } else if (heatSourceType === 'hotWater') {
           options = insulationData.hotWater;
+      } else if (heatSourceType === 'other') {
+          options = { ...insulationData.steam, ...insulationData.hotWater };
       }
 
       let bestCaseKey: string | null = null;
@@ -884,7 +1552,6 @@ document.addEventListener('DOMContentLoaded', () => {
               }
           }
           
-          // In case all values are the same, don't label anything
           if (minConductivity === maxConductivity) {
               bestCaseKey = null;
               worstCaseKey = null;
@@ -896,7 +1563,7 @@ document.addEventListener('DOMContentLoaded', () => {
       placeholder.value = '';
       placeholder.textContent = Object.keys(options).length > 0 ? 'Select insulation...' : 'Select heat source type first...';
       placeholder.disabled = true;
-      placeholder.selected = true;
+      placeholder.selected = true; // Default selection
       pipeInsulationTypeSelect.appendChild(placeholder);
 
       for (const key in options) {
@@ -922,7 +1589,11 @@ document.addEventListener('DOMContentLoaded', () => {
       customOption.textContent = 'Other (specify)...';
       pipeInsulationTypeSelect.appendChild(customOption);
       
-      // Reset dependent fields
+      // FIX: Attempt to restore the previously selected value if it exists in the new set of options.
+      if (Array.from(pipeInsulationTypeSelect.options).some(o => o.value === currentValue)) {
+          pipeInsulationTypeSelect.value = currentValue;
+      }
+      
       handlePipeInsulationChange();
   };
   
@@ -1101,9 +1772,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const updateConductivity = () => {
         if (!soilTypeSelect || !soilConductivityInput) return;
         const selectedOption = soilTypeSelect.options[soilTypeSelect.selectedIndex];
-        const conductivity = selectedOption.getAttribute('data-conductivity');
-        if (conductivity) {
-            soilConductivityInput.value = conductivity;
+        // FIX: Add a check to ensure selectedOption is not null before getting attribute
+        if (selectedOption) {
+            const conductivity = selectedOption.getAttribute('data-conductivity');
+            if (conductivity) {
+                soilConductivityInput.value = conductivity;
+            }
         }
     };
 
@@ -1159,6 +1833,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const data = getFormData();
+    const gasPipelineDiameterText = getSelectedText('gasPipelineDiameter');
+    const heatSourcePipelineDiameterText = getSelectedText('pipelineDiameter');
+
 
     // Evaluation Information
     addItem(evaluationContainer, 'Date', data.date);
@@ -1182,24 +1859,24 @@ document.addEventListener('DOMContentLoaded', () => {
             : 'N/A';
         addItem(heatSourceContainer, 'Registered Assets with 811 "DigSafe"', registered811Display);
         addItem(heatSourceContainer, 'Data Confirmation Date', data.confirmationDate);
-        const maxTempDisplayValue = data.maxTemp ? `${data.maxTemp} (${data.tempType})` : 'N/A';
-        addItem(heatSourceContainer, 'Max Operating Temp (°F)', maxTempDisplayValue);
-        const maxPressureDisplayValue = data.maxPressure ? `${data.maxPressure} (${data.pressureType})` : 'N/A';
-        addItem(heatSourceContainer, 'Max Operating Pressure (psig)', maxPressureDisplayValue);
-        const heatSourceAgeDisplayValue = data.heatSourceAge ? `${data.heatSourceAge} (${data.ageType})` : 'N/A';
-        addItem(heatSourceContainer, 'Line Age (years)', heatSourceAgeDisplayValue);
+        const maxTempDisplayValue = data.maxTemp ? `${data.maxTemp} (°F) (${data.tempType})` : 'N/A';
+        addItem(heatSourceContainer, 'Max Operating Temp', maxTempDisplayValue);
+        const maxPressureDisplayValue = data.maxPressure ? `${data.maxPressure} (psig) (${data.pressureType})` : 'N/A';
+        addItem(heatSourceContainer, 'Max Operating Pressure', maxPressureDisplayValue);
+        const heatSourceAgeDisplayValue = data.heatSourceAge ? `${data.heatSourceAge} (years) (${data.ageType})` : 'N/A';
+        addItem(heatSourceContainer, 'Line Age', heatSourceAgeDisplayValue);
         const systemDutyCycleDisplayValue = data.systemDutyCycle ? `${data.systemDutyCycle} (${data.systemDutyCycleType})` : 'N/A';
         addItem(heatSourceContainer, 'System Duty Cycle / Uptime', systemDutyCycleDisplayValue);
         const pipeCasingInfoDisplayValue = data.pipeCasingInfo ? `${data.pipeCasingInfo} (${data.pipeCasingInfoType})` : 'N/A';
         addItem(heatSourceContainer, 'Pipe Casing / Conduit Information', pipeCasingInfoDisplayValue);
         const heatLossEvidenceDisplayValue = data.heatLossEvidence ? `${data.heatLossEvidence} (Source: ${data.heatLossEvidenceSource})` : 'N/A';
         addItem(heatSourceContainer, 'Evidence of Surface Heat Loss', heatLossEvidenceDisplayValue);
-        const pipelineDiameterDisplayValue = data.pipelineDiameter !== 'N/A' ? `${data.pipelineDiameter} (${data.diameterType})` : 'N/A';
-        addItem(heatSourceContainer, 'Pipeline Nominal Diameter (inches)', pipelineDiameterDisplayValue);
+        const pipelineDiameterDisplayValue = heatSourcePipelineDiameterText !== 'N/A' ? `${heatSourcePipelineDiameterText}" (${data.diameterType})` : 'N/A';
+        addItem(heatSourceContainer, 'Pipeline Nominal Diameter', pipelineDiameterDisplayValue);
         const heatSourcePipeMaterialDisplayValue = data.heatSourcePipeMaterial !== 'N/A' ? `${data.heatSourcePipeMaterial} (${data.materialType})` : 'N/A';
         addItem(heatSourceContainer, 'Pipe Material', heatSourcePipeMaterialDisplayValue);
-        const heatSourceWallThicknessDisplayValue = data.heatSourceWallThickness ? `${data.heatSourceWallThickness} (${data.wallThicknessType})` : 'N/A';
-        addItem(heatSourceContainer, 'Pipe Wall Thickness (inches)', heatSourceWallThicknessDisplayValue);
+        const heatSourceWallThicknessDisplayValue = data.heatSourceWallThickness ? `${data.heatSourceWallThickness}" (${data.wallThicknessType})` : 'N/A';
+        addItem(heatSourceContainer, 'Pipe Wall Thickness', heatSourceWallThicknessDisplayValue);
         const connectionsValueText = data.connectionsValue.length > 0 ? data.connectionsValue.join('\n') : 'N/A';
         const connectionsDisplayValue = connectionsValueText !== 'N/A' ? `${connectionsValueText} (${data.connectionTypesType})` : 'N/A';
         addItem(heatSourceContainer, 'Line connection types', connectionsDisplayValue);
@@ -1209,27 +1886,26 @@ document.addEventListener('DOMContentLoaded', () => {
             addItem(heatSourceContainer, 'Custom Insulation Thermal Conductivity', data.customInsulationThermalConductivity);
         }
         if (data.insulationType !== 'None') {
-            const insulationThicknessDisplayValue = data.insulationThickness ? `${data.insulationThickness} (${data.insulationThicknessType})` : 'N/A';
-            addItem(heatSourceContainer, 'Insulation Thickness (inches)', insulationThicknessDisplayValue);
+            const insulationThicknessDisplayValue = data.insulationThickness ? `${data.insulationThickness}" (${data.insulationThicknessType})` : 'N/A';
+            addItem(heatSourceContainer, 'Insulation Thickness', insulationThicknessDisplayValue);
             const insulationConditionDisplayValue = data.insulationCondition ? `${data.insulationCondition} (Source: ${data.insulationConditionSource})` : 'N/A';
             addItem(heatSourceContainer, 'Known Condition of Insulation', insulationConditionDisplayValue);
         }
-        const heatSourceDepthDisplayValue = data.heatSourceDepth ? `${data.heatSourceDepth} (${data.depthType})` : 'N/A';
-        addItem(heatSourceContainer, 'Depth from Ground Surface to Pipe Centerline (feet)', heatSourceDepthDisplayValue);
+        const heatSourceDepthDisplayValue = data.heatSourceDepth ? `${data.heatSourceDepth} (ft) (${data.depthType})` : 'N/A';
+        addItem(heatSourceContainer, 'Depth to Pipe Centerline', heatSourceDepthDisplayValue);
         addItem(heatSourceContainer, 'Additional Information', data.additionalInfo);
     }
 
     // Gas Line Data
-    const gasPipeOd = getGasPipeOd(data.gasPipelineDiameter, data.gasPipeSizingStandard);
-    const gasDiameterDisplay = data.gasPipelineDiameter !== 'N/A'
-      ? `${data.gasPipelineDiameter} (OD: ${!isNaN(gasPipeOd) ? gasPipeOd.toFixed(3) : 'N/A'} in)`
+    const gasPipeOd = getGasPipeOd(gasPipelineDiameterText, data.gasPipeSizingStandard);
+    const gasDiameterDisplay = gasPipelineDiameterText !== 'N/A'
+      ? `${gasPipelineDiameterText}" (OD: ${!isNaN(gasPipeOd) ? gasPipeOd.toFixed(3) : 'N/A'} inches)`
       : 'N/A';
 
     addItem(gasLineContainer, 'Gas Line Operator Name', data.gasOperatorName);
-    addItem(gasLineContainer, 'Distribution Operating Company (DOC)', data.gasDoc);
-    addItem(gasLineContainer, 'Gas Line Max Operating Pressure (psig)', data.gasMaxPressure);
+    addItem(gasLineContainer, 'Max Operating Pressure (psig)', data.gasMaxPressure);
     addItem(gasLineContainer, 'Installation Year / Vintage', data.gasInstallationYear);
-    addItem(gasLineContainer, 'Gas Line Pipeline Nominal Diameter (in)', gasDiameterDisplay);
+    addItem(gasLineContainer, 'Pipeline Nominal Diameter', gasDiameterDisplay);
     addItem(gasLineContainer, 'Pipe Sizing Standard', data.gasPipeSizingStandard.toUpperCase());
     addItem(gasLineContainer, 'Gas Pipeline Material', data.gasPipeMaterial);
     if (data.gasPipeWallThickness !== 'N/A') {
@@ -1261,10 +1937,10 @@ document.addEventListener('DOMContentLoaded', () => {
             addItem(gasLineContainer, 'Coating Max Allowable Temp (°F)', data.gasCoatingMaxTemp);
         }
     }
-    addItem(gasLineContainer, 'Gas Line Orientation to Heat Source', data.gasLineOrientation);
-    addItem(gasLineContainer, 'Depth of Gas Line to Pipe Centerline (feet)', data.depthOfBurialGasLine);
+    addItem(gasLineContainer, 'Orientation to Heat Source', data.gasLineOrientation);
+    addItem(gasLineContainer, 'Depth to Pipe Centerline (feet)', data.depthOfBurialGasLine);
     if (data.parallelDistance !== 'N/A') {
-        addItem(gasLineContainer, 'Distance from Heat Source to Gas Line Centerline (feet)', data.parallelDistance);
+        addItem(gasLineContainer, 'Centerline Distance (feet)', data.parallelDistance);
         addItem(gasLineContainer, 'Length of Parallel Section (feet)', data.parallelLength);
         if (data.parallelCoordinates && data.parallelCoordinates.length > 0) {
             const coordsText = data.parallelCoordinates
@@ -1277,12 +1953,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const coordinates = (data.latitude && data.longitude) ? `${data.latitude}, ${data.longitude}` : 'N/A';
         addItem(gasLineContainer, 'Coordinates of Intersection (Lat, Lng)', coordinates);
     }
+    if (data.lateralOffset !== 'N/A') {
+        addItem(gasLineContainer, 'Lateral Offset (feet)', data.lateralOffset);
+    }
+    if (data.crossingAngle !== 'N/A') {
+        addItem(gasLineContainer, 'Crossing Angle (degrees)', data.crossingAngle);
+    }
 
     // Soil Data
-    addItem(soilContainer, 'Native Soil Type Classification', data.soilType);
+    addItem(soilContainer, 'Native Soil Type Classification', getSelectedText('soilType').replace(/ \(.*\)/, ''));
     addItem(soilContainer, 'Native Soil Thermal Conductivity (BTU/hr·ft·°F)', data.soilThermalConductivity);
     addItem(soilContainer, 'Soil Moisture Content (%)', data.soilMoistureContent);
-    addItem(soilContainer, 'Average Ground Surface Temperature (°F)', data.groundSurfaceTemperature);
+    addItem(soilContainer, 'Average Ground Temperature (°F)', data.averageGroundTemperature);
     addItem(soilContainer, 'Evidence of Water Infiltration/Frost Heave', data.waterInfiltration);
     if (data.waterInfiltrationComments) {
         addItem(soilContainer, 'Comments on Infiltration/Heave', data.waterInfiltrationComments);
@@ -1315,198 +1997,189 @@ document.addEventListener('DOMContentLoaded', () => {
   
   const updateAssessmentFormView = () => {
     const contentContainer = document.getElementById('assessment-form-content')!;
-    contentContainer.innerHTML = '';
-  
-    const data = getFormData();
-  
-    const createSection = (title: string) => {
-      const sectionDiv = document.createElement('div');
-      sectionDiv.className = 'summary-section';
-      const titleEl = document.createElement('h3');
-      titleEl.textContent = title;
-      sectionDiv.appendChild(titleEl);
-      contentContainer.appendChild(sectionDiv);
-      return sectionDiv;
+    contentContainer.innerHTML = ''; // Clear previous content
+
+    // Helper functions to build the form document
+    const createSection = (title: string, parent: HTMLElement) => {
+        const section = document.createElement('div');
+        section.className = 'form-section-printable';
+        const header = document.createElement('h3');
+        header.className = 'form-header-printable';
+        header.textContent = title;
+        section.appendChild(header);
+        parent.appendChild(section);
+        return section;
     };
-  
-    const addItem = (container: HTMLElement, label: string, value: any) => {
-      const item = createSummaryItem(label, value);
-      if (item) container.appendChild(item);
+
+    const createTextField = (label: string, parent: HTMLElement, notes = '') => {
+        const field = document.createElement('div');
+        field.className = 'form-field-printable text-field';
+        field.innerHTML = `
+            <label>${label}</label>
+            <div class="input-line"></div>
+            ${notes ? `<div class="field-notes">${notes}</div>` : ''}
+        `;
+        parent.appendChild(field);
     };
-  
-    // --- Evaluation Section ---
-    const evalSection = createSection('Evaluation Information');
-    addItem(evalSection, 'Date', data.date);
-    addItem(evalSection, `Evaluator Name${(data.evaluatorNames || []).length > 1 ? 's' : ''}`, data.evaluatorNames);
-    addItem(evalSection, 'Engineer’s Name', data.engineerName);
-    addItem(evalSection, 'Project Name', data.projectName);
-    addItem(evalSection, 'Project Location', data.projectLocation);
-    addItem(evalSection, 'Project Description', data.projectDescription);
-  
-    // --- Heat Source Section ---
-    const hsSection = createSection('Heat Source Data');
-    if (!data.isHeatSourceApplicable) {
-      addItem(hsSection, 'Heat Source Status', 'No applicable heat source type selected.');
-    } else {
-      addItem(hsSection, 'Heat Source Type', data.heatSourceType);
-      addItem(hsSection, 'Name of Individual(s) Providing Data', data.operatorName);
-      addItem(hsSection, 'Operator Company Name', data.operatorCompanyName);
-      addItem(hsSection, 'Operating Company Address', data.operatorCompanyAddress);
-      addItem(hsSection, 'Contact Info (Phone or Email)', data.operatorContactInfo);
-      const registered811Display = data.isRegistered811 !== 'N/A'
-            ? `${data.isRegistered811} (${data.registered811Confirmation})`
-            : 'N/A';
-      addItem(hsSection, 'Has operator Registered Assets with 811 "DigSafe"?', registered811Display);
-      addItem(hsSection, 'Data Confirmation Date', data.confirmationDate);
-      const maxTempDisplayValue = data.maxTemp ? `${data.maxTemp} (${data.tempType})` : 'N/A';
-      addItem(hsSection, 'Max Operating Temp (°F)', maxTempDisplayValue);
-      const maxPressureDisplayValue = data.maxPressure ? `${data.maxPressure} (${data.pressureType})` : 'N/A';
-      addItem(hsSection, 'Max Operating Pressure (psig)', maxPressureDisplayValue);
-      const heatSourceAgeDisplayValue = data.heatSourceAge ? `${data.heatSourceAge} (${data.ageType})` : 'N/A';
-      addItem(hsSection, 'Line Age (years)', heatSourceAgeDisplayValue);
-      const systemDutyCycleDisplayValue = data.systemDutyCycle ? `${data.systemDutyCycle} (${data.systemDutyCycleType})` : 'N/A';
-      addItem(hsSection, 'System Duty Cycle / Uptime', systemDutyCycleDisplayValue);
-      const pipeCasingInfoDisplayValue = data.pipeCasingInfo ? `${data.pipeCasingInfo} (${data.pipeCasingInfoType})` : 'N/A';
-      addItem(hsSection, 'Pipe Casing / Conduit Information', pipeCasingInfoDisplayValue);
-      const heatLossEvidenceDisplayValue = data.heatLossEvidence ? `${data.heatLossEvidence} (Source: ${data.heatLossEvidenceSource})` : 'N/A';
-      addItem(hsSection, 'Evidence of Surface Heat Loss', heatLossEvidenceDisplayValue);
-      const pipelineDiameterDisplayValue = data.pipelineDiameter !== 'N/A' ? `${data.pipelineDiameter} (${data.diameterType})` : 'N/A';
-      addItem(hsSection, 'Pipeline Nominal Diameter (inches)', pipelineDiameterDisplayValue);
-      const heatSourcePipeMaterialDisplayValue = data.heatSourcePipeMaterial !== 'N/A' ? `${data.heatSourcePipeMaterial} (${data.materialType})` : 'N/A';
-      addItem(hsSection, 'Pipe Material', heatSourcePipeMaterialDisplayValue);
-      const heatSourceWallThicknessDisplayValue = data.heatSourceWallThickness ? `${data.heatSourceWallThickness} (${data.wallThicknessType})` : 'N/A';
-      addItem(hsSection, 'Pipe Wall Thickness (inches)', heatSourceWallThicknessDisplayValue);
-      const connectionsValueText = data.connectionsValue.length > 0 ? data.connectionsValue.join('\n') : 'N/A';
-      const connectionsDisplayValue = connectionsValueText !== 'N/A' ? `${connectionsValueText} (${data.connectionTypesType})` : 'N/A';
-      addItem(hsSection, 'Line connection types', connectionsDisplayValue);
-      const insulationTypeDisplayValue = data.insulationType !== 'N/A' ? `${data.insulationType} (${data.insulationTypeType})` : 'N/A';
-      addItem(hsSection, 'Pipe Insulation Type', insulationTypeDisplayValue);
-      if (data.insulationType.startsWith('Other')) {
-          addItem(hsSection, 'Custom Insulation Thermal Conductivity', data.customInsulationThermalConductivity);
-      }
-      if (data.insulationType !== 'None') {
-          const insulationThicknessDisplayValue = data.insulationThickness ? `${data.insulationThickness} (${data.insulationThicknessType})` : 'N/A';
-          addItem(hsSection, 'Insulation Thickness (inches)', insulationThicknessDisplayValue);
-          const insulationConditionDisplayValue = data.insulationCondition ? `${data.insulationCondition} (Source: ${data.insulationConditionSource})` : 'N/A';
-          addItem(hsSection, 'Known Condition of Insulation', insulationConditionDisplayValue);
-      }
-      const heatSourceDepthDisplayValue = data.heatSourceDepth ? `${data.heatSourceDepth} (${data.depthType})` : 'N/A';
-      addItem(hsSection, 'Depth from Ground Surface to Pipe Centerline (feet)', heatSourceDepthDisplayValue);
-      addItem(hsSection, 'Additional Information', data.additionalInfo);
-    }
-  
-    // --- Gas Line Section ---
-    const gasSection = createSection('Gas Line Data');
-    const gasPipeOd = getGasPipeOd(data.gasPipelineDiameter, data.gasPipeSizingStandard);
-    const gasDiameterDisplay = data.gasPipelineDiameter !== 'N/A'
-      ? `${data.gasPipelineDiameter} (OD: ${!isNaN(gasPipeOd) ? gasPipeOd.toFixed(3) : 'N/A'} in)`
-      : 'N/A';
-    addItem(gasSection, 'Gas Line Operator Name', data.gasOperatorName);
-    addItem(gasSection, 'Distribution Operating Company (DOC)', data.gasDoc);
-    addItem(gasSection, 'Gas Line Max Operating Pressure (psig)', data.gasMaxPressure);
-    addItem(gasSection, 'Installation Year / Vintage', data.gasInstallationYear);
-    addItem(gasSection, 'Gas Line Pipeline Nominal Diameter (in)', gasDiameterDisplay);
-    addItem(gasSection, 'Pipe Sizing Standard', data.gasPipeSizingStandard.toUpperCase());
-    addItem(gasSection, 'Gas Pipeline Material', data.gasPipeMaterial);
-    if (data.gasPipeWallThickness !== 'N/A') {
-        addItem(gasSection, 'Gas Pipe Wall Thickness (inches)', data.gasPipeWallThickness);
-    }
-    if (data.gasPipeSDR !== 'N/A') {
-        addItem(gasSection, 'Gas Pipe SDR', data.gasPipeSDR);
-    }
-    if (data.gasPipeMaterial.startsWith('Other')) {
-        addItem(gasSection, 'Custom Material Thermal Conductivity', data.customGasThermalConductivity || 'N/A');
-    }
     
-    const isPlastic = ['hdpe', 'mdpe', 'aldyl'].includes(data.gasPipeMaterialValue);
-    if (isPlastic) {
-        addItem(gasSection, 'Material Continuous Temp Limit (°F)', data.gasPipeContinuousLimit);
-        addItem(gasSection, 'Common Utility Cap Temp (°F)', data.gasPipeUtilityCap);
-        const operationalLimitItem = createSummaryItem('OPERATIONAL TEMP LIMIT (°F)', '70 (Max for all plastic pipes)');
-        if (operationalLimitItem) {
-            operationalLimitItem.style.backgroundColor = '#fcf8e3';
-            operationalLimitItem.style.fontWeight = 'bold';
-            gasSection.appendChild(operationalLimitItem);
+    const createTextAreaField = (label: string, parent: HTMLElement, rows = 4, notes = '') => {
+        const field = document.createElement('div');
+        field.className = 'form-field-printable text-area-field';
+        let lines = '';
+        for (let i = 0; i < rows; i++) {
+            lines += '<div class="input-line"></div>';
         }
-        addItem(gasSection, 'Key Notes', data.gasPipeNotes);
-    }
+        field.innerHTML = `
+            <label>${label}</label>
+            <div class="input-box">${lines}</div>
+            ${notes ? `<div class="field-notes">${notes}</div>` : ''}
+        `;
+        parent.appendChild(field);
+    };
+
+    const createChoiceField = (label: string, options: string[], parent: HTMLElement, notes = '', isMulti = false) => {
+        const field = document.createElement('div');
+        field.className = 'form-field-printable choice-field';
+        let optionsHTML = options.map(opt => `
+            <div class="choice-option">
+                <span class="checkbox"></span>
+                <span>${opt}</span>
+            </div>
+        `).join('');
+        
+        field.innerHTML = `
+            <label>${label}</label>
+            <div class="choices-container">${optionsHTML}</div>
+            ${notes ? `<div class="field-notes">${notes}` : ''}
+            ${isMulti ? `<br><em>(Check all that apply)</em></div>` : '</div>'}
+        `;
+        parent.appendChild(field);
+    };
+
+    // --- Build the form ---
+
+    // Evaluation Information
+    const evalSection = createSection('Evaluation Information', contentContainer);
+    createTextField('Date:', evalSection);
+    createTextField('Engineer’s Name:', evalSection);
+    createTextField('Project Name:', evalSection);
+    createTextField('Project Location:', evalSection);
+    createTextAreaField('Project Description:', evalSection, 5);
+    createTextAreaField('Evaluator(s) Name(s) & Affiliation(s):', evalSection, 3);
     
-    if (data.gasCoatingType !== 'N/A') {
-        addItem(gasSection, 'Coating Type', data.gasCoatingType);
-        if (data.gasCoatingMaxTemp !== 'N/A' && data.gasCoatingMaxTemp !== 'Custom') {
-            addItem(gasSection, 'Coating Max Allowable Temp (°F)', data.gasCoatingMaxTemp);
-        }
+    // Heat Source Data
+    const hsSection = createSection('Heat Source Data', contentContainer);
+    createChoiceField('Buried Heat Source Type:', ['Steam Line', 'Hot Water Line', 'Super Heated Hot Water Line', 'Other: _______________'], hsSection);
+    createTextField('Operator Company Name:', hsSection);
+    createTextField('Operating Company Address:', hsSection);
+    createTextField('Name of Individual(s) Providing Data:', hsSection);
+    createTextField('Contact Info (Phone or Email):', hsSection);
+    createChoiceField('Has operator Registered Assets with 811 "DigSafe"?', ['Yes', 'No', 'Unknown'], hsSection);
+    createChoiceField('Confirmation of 811 Registration Status:', ['Confirmed with operator', 'Assumed', 'Unknown'], hsSection);
+    createTextField('Data Confirmation Date:', hsSection);
+    createTextField('Max Operating Temp (°F):', hsSection, 'Circle one: Unknown / Actual / Estimated');
+    createTextField('Max Operating Pressure (psig):', hsSection, 'Circle one: Unknown / Actual / Assumed');
+    createTextField('Line Age (years):', hsSection, 'Circle one: Unknown / Actual / Assumed');
+    createTextAreaField('System Duty Cycle / Uptime:', hsSection, 3, 'e.g., "24/7", "Winter only". Circle one: Unknown / Actual / Assumed');
+    createTextAreaField('Pipe Casing / Conduit Information:', hsSection, 3, 'Circle one: Unknown / Actual / Assumed');
+    createTextAreaField('Evidence of Heat Loss at the Surface:', hsSection, 4, 'e.g., melted snow, stressed vegetation. Note source: Field Visit / Operator Info / Other');
+    createTextField('Pipeline Nominal Diameter (inches):', hsSection, 'Circle one: Unknown / Actual / Assumed');
+    createTextField('Pipe Material:', hsSection, 'Circle one: Unknown / Actual / Assumed');
+    createTextField('Pipe Wall Thickness (inches):', hsSection, 'Circle one: Unknown / Actual / Assumed');
+    createChoiceField('Line connection types:', ['Butt-welded', 'Socket-welded', 'Flanged', 'Grooved Coupling', 'Brazed/Soldered', 'Plastic Fusion', 'Other: _________'], hsSection, 'Circle one: Unknown / Actual / Assumed', true);
+    createTextField('Pipe Insulation Type:', hsSection, 'Circle one: Unknown / Actual / Assumed');
+    createTextField('Insulation Thickness (inches):', hsSection, 'Circle one: Unknown / Actual / Assumed');
+    createTextAreaField('Known Condition of Insulation:', hsSection, 3, 'e.g., degraded, water-logged. Note source: Unknown / Confirmed by Operator / Assumed / Other');
+    createTextField('Depth from Ground Surface to Pipe Centerline (feet):', hsSection, 'Circle one: Unknown / Actual / Assumed');
+    createTextAreaField('Additional Information Provided by the Operator:', hsSection, 4);
+
+    // Gas Line Data
+    const gasSection = createSection('Gas Line Data', contentContainer);
+    createTextField('Gas Line Operator Name:', gasSection);
+    createTextField('Gas Line Max Operating Pressure (psig):', gasSection);
+    createTextField('Installation Year / Vintage:', gasSection);
+    createTextField('Gas Line Pipeline Nominal Diameter (inches):', gasSection);
+    createChoiceField('Pipe Sizing Standard:', ['IPS (Iron Pipe Size)', 'CTS (Copper Tube Size)'], gasSection);
+    createTextField('Gas Pipeline Material:', gasSection);
+    createTextField('Gas Pipe Wall Thickness (inches):', gasSection);
+    createTextField('Gas Pipe SDR (if applicable):', gasSection);
+    createTextField('Coating Type:', gasSection);
+    createChoiceField('Gas Line Orientation to Heat Source:', ['Perpendicular', 'Parallel'], gasSection);
+    createTextField('Depth of Gas Line to Pipe Centerline (feet):', gasSection);
+    createTextField('If Parallel: Distance from Heat Source to Gas Line Centerline (feet):', gasSection);
+    createTextField('If Parallel: Length of Parallel Section (feet):', gasSection);
+    createTextAreaField('Coordinates of Intersection / Parallel Section:', gasSection, 3, 'Note Lat/Long for key points.');
+
+    // Soil Data
+    const soilSection = createSection('Soil & Bedding Data', contentContainer);
+    createTextField('Native Soil Type Classification:', soilSection);
+    createTextField('Native Soil Thermal Conductivity (BTU/hr·ft·°F):', soilSection);
+    createTextField('Soil Moisture Content (%):', soilSection);
+    createTextField('Average Ground Temperature (°F):', soilSection);
+    createTextAreaField('Evidence of water infiltration or frost heave:', soilSection, 3, 'Circle one: Yes / No / Unknown');
+    createTextAreaField('Heat Source Trench Bedding:', soilSection, 2, 'Describe bedding type (e.g., sand) and dimensions if known.');
+    createTextAreaField('Gas Line Trench Bedding:', soilSection, 2, 'Describe bedding type (e.g., sand) and dimensions if known.');
+
+    // Field Visit
+    const fieldSection = createSection('Field Visit', contentContainer);
+    createTextField('Date of Visit:', fieldSection);
+    createTextAreaField('Personnel on Site:', fieldSection, 3);
+    createTextAreaField('Weather and Site Conditions:', fieldSection, 4);
+    createTextAreaField('Field Observations and Notes:', fieldSection, 10, 'Note other utilities, surface conditions, markers, visual indicators, measurements, etc.');
+
+    // Photo Log section
+    const photoSection = createSection('Field Photos Log / Sketches', contentContainer);
+    let photoLogHTML = '<div class="photo-log-grid">';
+    for (let i = 1; i <= 10; i++) {
+        photoLogHTML += `
+            <div class="photo-log-entry">
+                <div class="photo-box">Photo #${i} / Sketch</div>
+                <div class="photo-desc-area">
+                    <label>Description:</label>
+                    <div class="input-line"></div>
+                    <div class="input-line"></div>
+                    <div class="input-line"></div>
+                </div>
+            </div>
+        `;
     }
-    addItem(gasSection, 'Gas Line Orientation to Heat Source', data.gasLineOrientation);
-    addItem(gasSection, 'Depth of Gas Line to Pipe Centerline (feet)', data.depthOfBurialGasLine);
-    if (data.parallelDistance !== 'N/A') {
-        addItem(gasSection, 'Distance from Heat Source to Gas Line Centerline (feet)', data.parallelDistance);
-        addItem(gasSection, 'Length of Parallel Section (feet)', data.parallelLength);
-        if (data.parallelCoordinates && data.parallelCoordinates.length > 0) {
-            const coordsText = data.parallelCoordinates
-                .map(p => `${p.label}: ${p.lat || 'N/A'}, ${p.lng || 'N/A'}`)
-                .join('\n');
-            addItem(gasSection, 'Parallel Section Coordinates', coordsText);
-        }
-    }
-    if (data.latitude !== 'N/A' && data.longitude !== 'N/A') {
-        const coordinates = (data.latitude && data.longitude) ? `${data.latitude}, ${data.longitude}` : 'N/A';
-        addItem(gasSection, 'Coordinates of Intersection (Lat, Lng)', coordinates);
-    }
-  
-    // --- Soil Section ---
-    const soilSection = createSection('Soil & Bedding Data');
-    addItem(soilSection, 'Native Soil Type Classification', data.soilType);
-    addItem(soilSection, 'Native Soil Thermal Conductivity (BTU/hr·ft·°F)', data.soilThermalConductivity);
-    addItem(soilSection, 'Soil Moisture Content (%)', data.soilMoistureContent);
-    addItem(soilSection, 'Average Ground Surface Temperature (°F)', data.groundSurfaceTemperature);
-    addItem(soilSection, 'Evidence of Water Infiltration/Frost Heave', data.waterInfiltration);
-    if (data.waterInfiltrationComments) {
-        addItem(soilSection, 'Comments on Infiltration/Heave', data.waterInfiltrationComments);
-    }
-    addItem(soilSection, 'Heat Source Trench Bedding', data.heatSourceBeddingType === 'sand' ? 'Installed with sand bedding' : 'Unknown');
-    if (data.heatSourceBeddingType === 'sand') {
-        const dims = `Above: ${data.heatSourceBeddingTop || 'N/A'} in, Below: ${data.heatSourceBeddingBottom || 'N/A'} in, Left: ${data.heatSourceBeddingLeft || 'N/A'} in, Right: ${data.heatSourceBeddingRight || 'N/A'} in`;
-        addItem(soilSection, 'Heat Source Bedding Dimensions', dims);
-        const kValue = data.heatSourceBeddingUseCustomK === 'yes' ? `${data.heatSourceBeddingCustomK} (Custom)` : '0.20 (Default)';
-        addItem(soilSection, 'Heat Source Bedding Thermal Conductivity', kValue);
-    }
-    addItem(soilSection, 'Gas Line Trench Bedding', data.gasLineBeddingType === 'sand' ? 'Installed with sand bedding' : 'Unknown');
-    if (data.gasLineBeddingType === 'sand') {
-        const dims = `Above: ${data.gasBeddingTop || 'N/A'} in, Below: ${data.gasBeddingBottom || 'N/A'} in, Left: ${data.gasBeddingLeft || 'N/A'} in, Right: ${data.gasBeddingRight || 'N/A'} in`;
-        addItem(soilSection, 'Gas Line Bedding Dimensions', dims);
-        const kValue = data.gasBeddingUseCustomK === 'yes' ? `${data.gasBeddingCustomK} (Custom)` : '0.20 (Default)';
-        addItem(soilSection, 'Gas Line Bedding Thermal Conductivity', kValue);
-    }
-  
-    // --- Field Visit Section ---
-    const fieldSection = createSection('Field Visit');
-    addItem(fieldSection, 'Date of Visit', data.visitDate);
-    addItem(fieldSection, 'Personnel on Site', data.sitePersonnel);
-    addItem(fieldSection, 'Weather and Site Conditions', data.siteConditions);
-    addItem(fieldSection, 'Field Observations and Notes', data.fieldObservations);
-  
-    // --- Recommendations Section ---
-    const recSection = createSection('Recommendations');
-    if (data.recommendations && data.recommendations.length > 0 && data.recommendations.some(r => r.trim() !== '')) {
-      data.recommendations.forEach((rec: string, index: number) => {
-        if (rec.trim() !== '') {
-          addItem(recSection, `Recommendation #${index + 1}`, rec);
-        }
-      });
-    } else {
-      addItem(recSection, 'Recommendations', 'No specific recommendations provided.');
-    }
+    photoLogHTML += '</div>';
+    photoSection.innerHTML += photoLogHTML;
   };
   
-  document.getElementById('printAssessmentFormButton')?.addEventListener('click', () => {
-    document.body.classList.add('printing-assessment-form');
-    window.print();
-    document.body.classList.remove('printing-assessment-form');
+  document.getElementById('exportPdfButton')?.addEventListener('click', () => {
+    const element = document.getElementById('assessment-form-content');
+    const button = document.getElementById('exportPdfButton') as HTMLButtonElement;
+    
+    if (!element || !button) return;
+
+    button.textContent = 'Exporting...';
+    button.disabled = true;
+
+    const opt = {
+      margin:       [0.5, 0.5, 0.5, 0.5],
+      filename:     `assessment-form-${new Date().toISOString().split('T')[0]}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
+      jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' },
+      pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+    
+    // The html2pdf library is loaded from a CDN and will be available on the window object.
+    (window as any).html2pdf().from(element).set(opt).save().then(() => {
+      button.textContent = 'Export to PDF';
+      button.disabled = false;
+    }).catch((err: Error) => {
+        console.error("Failed to export PDF:", err);
+        alert("An error occurred during PDF export. Please check the console for details.");
+        button.textContent = 'Export to PDF';
+        button.disabled = false;
+    });
   });
 
   // --- Admin Login Logic ---
-  const adminLoginButton = document.getElementById('adminLoginButton');
+  const adminExecuteButton = document.getElementById('adminExecuteButton');
+  const adminLogoutButton = document.getElementById('adminLogoutButton');
   const adminPasscodeInput = document.getElementById('adminPasscode') as HTMLInputElement;
   const adminLoginError = document.getElementById('adminLoginError');
   const adminLoginWrapper = document.getElementById('admin-login-wrapper');
@@ -1518,34 +2191,53 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     handleFinalReportTabClick(); // Update final report tab state
   };
+  
+  const disableAdminFeatures = () => {
+      document.querySelectorAll('.reword-button').forEach(btn => {
+          btn.classList.add('hidden');
+      });
+      // Instead of manipulating the DOM directly here, let the dedicated function handle it.
+      // The state `isAdminAuthenticated` is already false, so it will show the correct view.
+      handleFinalReportTabClick();
+  };
 
-  const handleAdminLogin = () => {
-    if (adminPasscodeInput.value === '0665') {
+  const handleAdminExecute = () => {
+      if (adminLoginError) adminLoginError.classList.add('hidden');
+
+      if (adminPasscodeInput.value !== '0665') {
+          if (adminLoginError) {
+              adminLoginError.textContent = 'Incorrect passcode.';
+              adminLoginError.classList.remove('hidden');
+          }
+          return;
+      }
+      
       isAdminAuthenticated = true;
       adminLoginWrapper?.classList.add('hidden');
       adminContentWrapper?.classList.remove('hidden');
-      adminLoginError?.classList.add('hidden');
-      adminPasscodeInput.value = ''; // Clear password on success
       enableAdminFeatures();
-    } else {
-      if (adminLoginError) {
-        adminLoginError.textContent = 'Incorrect passcode.';
-        adminLoginError.classList.remove('hidden');
-      }
-    }
+  };
+  
+  const handleAdminLogout = () => {
+      isAdminAuthenticated = false;
+      adminLoginWrapper?.classList.remove('hidden');
+      adminContentWrapper?.classList.add('hidden');
+      adminPasscodeInput.value = '';
+      disableAdminFeatures();
   };
 
-  if (adminLoginButton) {
-    adminLoginButton.addEventListener('click', handleAdminLogin);
-  }
+  adminExecuteButton?.addEventListener('click', handleAdminExecute);
+  adminLogoutButton?.addEventListener('click', handleAdminLogout);
 
-  if (adminPasscodeInput) {
-    adminPasscodeInput.addEventListener('keypress', (e) => {
+  const handleAdminKeyPress = (e: KeyboardEvent) => {
       if (e.key === 'Enter') {
-        handleAdminLogin();
+          e.preventDefault(); // prevent form submission
+          adminExecuteButton?.click();
       }
-    });
-  }
+  };
+
+  adminPasscodeInput?.addEventListener('keypress', handleAdminKeyPress);
+
 
   // --- Reword with AI Logic ---
   const rewordModal = document.getElementById('rewordModal');
@@ -1587,14 +2279,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const handleRewordClick = async (buttonId: string, textareaId: string, context: string) => {
     const button = document.getElementById(buttonId) as HTMLButtonElement;
     const textarea = document.getElementById(textareaId) as HTMLTextAreaElement;
-    const apiKey = (document.getElementById('apiKey') as HTMLInputElement)?.value;
 
-    if (!apiKey) {
-      alert('Please enter your Gemini API Key in the Admin Login tab.');
-      // Switch to admin tab
-      document.querySelector('.tab-button[data-tab="admin"]')?.dispatchEvent(new Event('click'));
-      return;
-    }
     if (!textarea.value.trim()) {
       alert('Please enter some text to reword.');
       return;
@@ -1604,7 +2289,6 @@ document.addEventListener('DOMContentLoaded', () => {
     button.textContent = '...';
 
     try {
-      const ai = new GoogleGenAI({ apiKey });
       const systemInstruction = "You are an expert in buried steam, hot water, and superheated hot water systems, and also an expert in natural gas buried distribution and transmission systems. You understand the critical safety issues that can arise from excessive heat transfer from a heat source line to a nearby gas line. Your task is to rephrase the user's text to be more professional, clear, and technically accurate for an engineering assessment report. Provide exactly 3 distinct, reworded versions.";
       const contents = `Please reword the following text about "${context}":\n\n"${textarea.value}"`;
 
@@ -1628,10 +2312,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
 
-      if (!response || typeof response.text !== 'string') {
-        throw new Error("Invalid response format from API.");
-      }
-      const jsonString = response.text.trim();
+      const jsonString = (response.text || '').trim();
       const result = JSON.parse(jsonString);
 
       if (result.versions && Array.isArray(result.versions) && result.versions.length > 0) {
@@ -1642,7 +2323,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } catch (error) {
       console.error("AI Reword Error:", error);
-      alert(`Failed to generate suggestions. Please check your API key and the browser console for details.\n${error instanceof Error ? error.message : ''}`);
+      alert(`Failed to generate suggestions. Please check the browser console for details.\n${error instanceof Error ? error.message : ''}`);
     } finally {
       button.disabled = false;
       button.textContent = 'Reword';
@@ -1691,30 +2372,85 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // --- FIX: Add missing addPhotoPreview function ---
+  const addPhotoPreview = (source: File | string, description: string = '') => {
+    const container = document.getElementById('image-preview-container');
+    if (!container) return;
+
+    const item = document.createElement('div');
+    item.className = 'photo-item';
+
+    const img = document.createElement('img');
+    const textarea = document.createElement('textarea');
+    textarea.className = 'photo-description'; // Use a distinct class for photo descriptions
+    textarea.rows = 3;
+    textarea.placeholder = 'Enter a description for this photo...';
+    textarea.value = description;
+
+    if (source instanceof File) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const image = new Image();
+            image.onload = () => {
+                const canvas = document.createElement('canvas');
+                // Simple resize logic to cap width
+                const MAX_WIDTH = 800;
+                let width = image.width;
+                let height = image.height;
+
+                if (width > MAX_WIDTH) {
+                    height = (height * MAX_WIDTH) / width;
+                    width = MAX_WIDTH;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(image, 0, 0, width, height);
+                img.src = canvas.toDataURL(source.type);
+            };
+            if (e.target?.result) {
+                image.src = e.target.result as string;
+            }
+        };
+        reader.readAsDataURL(source);
+    } else { // source is a string (data URL from save file)
+        img.src = source;
+    }
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'delete-photo-btn';
+    deleteBtn.innerHTML = '&times;';
+    deleteBtn.setAttribute('aria-label', 'Delete photo');
+    deleteBtn.onclick = () => {
+        item.remove();
+    };
+
+    item.appendChild(img);
+    item.appendChild(textarea);
+    item.appendChild(deleteBtn);
+    container.appendChild(item);
+  };
+
   // --- Image Uploader and Resizer ---
   const setupImageUploader = () => {
       const fileInput = document.getElementById('fieldPhotos') as HTMLInputElement;
-      const previewContainer = document.getElementById('image-preview-container');
 
-      if (!fileInput || !previewContainer) return;
+      if (!fileInput) return;
 
       fileInput.addEventListener('change', () => {
-          previewContainer.innerHTML = ''; // Clear previous previews
           const files = fileInput.files;
           if (!files) return;
 
           Array.from(files).forEach(file => {
-              // The input 'accept' attribute handles the filtering, but we can double-check
-              if (file.type === 'image/jpeg') {
-                  const reader = new FileReader();
-                  reader.onload = (e) => {
-                      if (e.target?.result) {
-                          createResizableImage(e.target.result as string, previewContainer);
-                      }
-                  };
-                  reader.readAsDataURL(file);
+              if (file.type.startsWith('image/')) {
+                  addPhotoPreview(file);
               }
           });
+          
+          // Reset input to allow selecting the same file again after removing
+          fileInput.value = '';
       });
   };
 
@@ -1740,25 +2476,25 @@ document.addEventListener('DOMContentLoaded', () => {
     deleteBtn.type = 'button';
     deleteBtn.className = 'delete-recommendation-btn';
     deleteBtn.innerHTML = '&times;';
-    deleteBtn.setAttribute('aria-label', 'Delete recommendation');
-    deleteBtn.addEventListener('click', () => {
+    deleteBtn.setAttribute('aria-label', `Delete recommendation #${container.children.length + 1}`);
+    deleteBtn.onclick = () => {
         item.remove();
-        // Update labels of remaining items
-        const remainingItems = container.querySelectorAll('.recommendation-item');
+        // Re-number remaining recommendations
+        const remainingItems = document.querySelectorAll('.recommendation-item');
         remainingItems.forEach((remItem, index) => {
             const remLabel = remItem.querySelector('label');
-            if (remLabel) {
-                remLabel.textContent = `Recommendation #${index + 1}`;
-            }
+            const remDeleteBtn = remItem.querySelector('.delete-recommendation-btn');
+            if (remLabel) remLabel.textContent = `Recommendation #${index + 1}`;
+            if (remDeleteBtn) remDeleteBtn.setAttribute('aria-label', `Delete recommendation #${index + 1}`);
         });
-    });
-
+    };
+    
     header.appendChild(label);
     header.appendChild(deleteBtn);
 
     const textareaWrapper = document.createElement('div');
     textareaWrapper.className = 'textarea-wrapper';
-
+    
     const textarea = document.createElement('textarea');
     textarea.id = itemId;
     textarea.className = 'recommendation-textarea';
@@ -1766,21 +2502,17 @@ document.addEventListener('DOMContentLoaded', () => {
     textarea.placeholder = 'Enter recommendation...';
     textarea.value = text;
 
-    const adjustTextareaHeight = () => {
-        textarea.style.height = 'auto';
-        textarea.style.height = `${textarea.scrollHeight}px`;
-    };
-    textarea.addEventListener('input', adjustTextareaHeight);
-    
     const rewordBtn = document.createElement('button');
     rewordBtn.type = 'button';
     rewordBtn.id = rewordBtnId;
     rewordBtn.className = 'reword-button';
     rewordBtn.textContent = 'Reword';
-    rewordBtn.setAttribute('aria-label', `Reword Recommendation #${container.children.length + 1}`);
-    rewordBtn.classList.toggle('hidden', !isAdminAuthenticated);
-    rewordBtn.addEventListener('click', () => handleRewordClick(rewordBtn.id, textarea.id, 'an engineering recommendation'));
-
+    rewordBtn.setAttribute('aria-label', 'Reword recommendation');
+    if (!isAdminAuthenticated) {
+      rewordBtn.classList.add('hidden');
+    }
+    rewordBtn.onclick = () => handleRewordClick(rewordBtnId, itemId, `a recommendation for the pipeline assessment`);
+    
     textareaWrapper.appendChild(textarea);
     textareaWrapper.appendChild(rewordBtn);
 
@@ -1788,1065 +2520,736 @@ document.addEventListener('DOMContentLoaded', () => {
     item.appendChild(textareaWrapper);
 
     container.appendChild(item);
-    
-    // Initial resize
-    setTimeout(adjustTextareaHeight, 0);
-
+    enableTextareaAutoResize(itemId); // Enable auto-resize for the new textarea
     recommendationCounter++;
   };
-
-  // --- Initialization ---
-  updateEvaluatorInputs(); // Initial call for evaluator inputs
-  toggleConditionalFields(); // Initial call to set up the form state based on default selections
-  handleGasOperatorNameChange(); // Set initial state for gas operator name field
-  handleGasPipeMaterialChange(); // Set initial state for gas material dependent fields
-  handleGasSdrChange(); // Set initial state for custom SDR input
-  handleGasLineOrientationChange(); // Set initial state for gas orientation fields
-  handleHeatLossSourceChange(); // Set initial state for heat loss evidence fields
-  handleInsulationConditionSourceChange(); // Set initial state for insulation condition fields
-  setupRewordButtons();
-  setupQuestionnaireReword();
-  setupImageUploader();
-  addRecommendation(); // Add one initial recommendation box
-  document.getElementById('addRecommendationButton')?.addEventListener('click', () => addRecommendation());
-
-  // --- Save/Load Functionality ---
-  const saveButton = document.getElementById('saveButton');
-  const loadButton = document.getElementById('loadButton');
-  const loadFileInput = document.getElementById('loadFile') as HTMLInputElement;
-
-  const handleSave = () => {
-    const formData: { [key: string]: any } = {};
-    const form = document.querySelector('.project-info-form');
-    if (!form) return;
-
-    const elements = form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input, select, textarea');
-    
-    elements.forEach(el => {
-      const id = el.id;
-      const name = el.name;
-      const type = (el as any).type;
-
-      if (type === 'radio') {
-        if ((el as HTMLInputElement).checked) {
-          formData[name] = (el as HTMLInputElement).value;
-        }
-      } else if (el.tagName.toLowerCase() === 'select' && (el as HTMLSelectElement).multiple) {
-        if (id) {
-            formData[id] = Array.from((el as HTMLSelectElement).selectedOptions).map(opt => opt.value);
-        }
-      } else if (id && type !== 'file') {
-        formData[id] = el.value;
-      }
-    });
-    
-    const fullData = getFormData(); // Get data including dynamic fields
-
-    const reportHTML = document.getElementById('generated-report-container')?.innerHTML || '';
-    const saveData = {
-        formData: fullData, // Save the full data object
-        reportHTML,
-        questionAnswers
-    };
-
-    const dataStr = JSON.stringify(saveData, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `assessment-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleFileSelect = (event: Event) => {
-    const input = event.target as HTMLInputElement;
-    if (!input.files || input.files.length === 0) return;
-
-    const file = input.files[0];
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      try {
-        const data = JSON.parse(reader.result as string);
-        populateForm(data);
-      } catch (error) {
-        console.error('Error parsing JSON file:', error);
-        alert('Could not load assessment. The file is not a valid JSON file.');
-      }
-    };
-
-    reader.onerror = () => {
-      console.error('Error reading file:', reader.error);
-      alert('An error occurred while reading the file.');
-    };
-
-    reader.readAsText(file);
-    input.value = ''; // Reset file input
-  };
-
-  const populateForm = (savedData: { [key: string]: any }) => {
-    const data = savedData.formData;
-    if (!data) {
-        alert('Invalid save file format.');
-        return;
-    }
-
-    for (const key in data) {
-      if (typeof data[key] === 'string' || typeof data[key] === 'number') {
-        const el = document.getElementById(key) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
-        if (el) {
-            el.value = String(data[key]);
-        }
-      }
-    }
-    
-    // Special handling for evaluator names
-    if (data.evaluatorNames && Array.isArray(data.evaluatorNames)) {
-        const numEvaluatorsSelect = document.getElementById('numEvaluators') as HTMLSelectElement;
-        if (numEvaluatorsSelect) {
-            const num = data.evaluatorNames.length;
-            if (num > 0 && num <= 3) {
-                numEvaluatorsSelect.value = String(num);
-                // This will trigger the input creation
-                numEvaluatorsSelect.dispatchEvent(new Event('change', { bubbles: true }));
-
-                // Use setTimeout to allow the DOM to update with the new inputs
-                setTimeout(() => {
-                    const nameInputs = document.querySelectorAll<HTMLInputElement>('.evaluator-name-input');
-                    data.evaluatorNames.forEach((name: string, index: number) => {
-                        if (nameInputs[index]) {
-                            nameInputs[index].value = name;
-                        }
-                    });
-                }, 0);
-            }
-        }
-    }
-    
-    // Special handling for heat source type radio and custom input
-    if (data.heatSourceType) {
-      const heatSourceRadios = document.querySelectorAll<HTMLInputElement>('input[name="heatSourceType"]');
-      let foundMatch = false;
-
-      // Check for 'Other' case first
-      if (data.heatSourceType.startsWith('Other:')) {
-        const otherRadio = document.getElementById('other') as HTMLInputElement;
-        if (otherRadio) {
-          otherRadio.checked = true;
-          foundMatch = true;
-          const customInput = document.getElementById('customHeatSourceType') as HTMLInputElement;
-          const customValue = data.heatSourceType.substring('Other:'.length).trim();
-          if (customInput && customValue !== 'not specified') {
-            customInput.value = customValue;
-          }
-        }
-      }
-
-      // If not 'Other', try to match other labels
-      if (!foundMatch) {
-        heatSourceRadios.forEach(radio => {
-          const label = document.querySelector(`label[for="${radio.id}"]`);
-          if (label && label.textContent === data.heatSourceType) {
-            radio.checked = true;
-          }
-        });
-      }
-    }
-
-    // Handle Radios by checking against both value and label text to support inconsistent save data
-    const radioNames = new Set(Array.from(document.querySelectorAll<HTMLInputElement>('input[type="radio"]')).map(r => r.name));
-    radioNames.forEach(name => {
-      if (data.hasOwnProperty(name) && name !== 'heatSourceType') { // heatSourceType is handled specially
-        const savedValue = data[name];
-        const radios = document.querySelectorAll<HTMLInputElement>(`input[name="${name}"]`);
-        
-        // Handle "Other: " combined strings first
-        if (typeof savedValue === 'string' && savedValue.startsWith('Other:')) {
-            const otherRadio = document.querySelector<HTMLInputElement>(`input[name="${name}"][value="other"]`);
-            if (otherRadio) {
-                otherRadio.checked = true;
-                const customInputId = {
-                    'heatLossEvidenceSource': 'customHeatLossSource',
-                    'insulationConditionSource': 'customInsulationConditionSource'
-                }[name];
-                if (customInputId) {
-                    const customInput = document.getElementById(customInputId) as HTMLInputElement;
-                    if (customInput) {
-                        customInput.value = savedValue.substring('Other:'.length).trim();
-                    }
-                }
-            }
-        } else {
-            radios.forEach(radio => {
-                const label = document.querySelector(`label[for="${radio.id}"]`);
-                // Check against value OR label text content
-                if (radio.value === savedValue || (label && label.textContent === savedValue)) {
-                    radio.checked = true;
-                }
-            });
-        }
-      }
-    });
-
-
-    // Handle multiselect for connection types
-    if (data.connectionsValue && Array.isArray(data.connectionsValue)) {
-      const selectEl = document.getElementById('connectionTypes') as HTMLSelectElement;
-      if (selectEl) {
-        let isOtherSelected = false;
-        let customText = '';
-        const otherEntry = data.connectionsValue.find((v: string) => v.startsWith('Other:'));
-        if (otherEntry) {
-            isOtherSelected = true;
-            const text = otherEntry.substring('Other:'.length).trim();
-            if (text !== 'not specified') {
-                customText = text;
-            }
-        }
-
-        const valuesToSelect = data.connectionsValue.filter((v: string) => !v.startsWith('Other:'));
-
-        Array.from(selectEl.options).forEach(option => {
-            if (option.value === 'other') {
-                option.selected = isOtherSelected;
-            } else {
-                option.selected = valuesToSelect.includes(option.text);
-            }
-        });
-        
-        const customInput = document.getElementById('customConnectionTypes') as HTMLTextAreaElement;
-        if (customInput) {
-            customInput.value = customText;
-        }
-      }
-    }
-    
-    // Special handling for wall thickness to re-populate options first
-    const pipelineDiameterSelect = document.getElementById('pipelineDiameter') as HTMLSelectElement;
-    if(pipelineDiameterSelect) {
-      pipelineDiameterSelect.dispatchEvent(new Event('change'));
-      setTimeout(() => {
-        const wallThicknessSelect = document.getElementById('wallThickness') as HTMLSelectElement;
-        if (wallThicknessSelect && data['wallThickness']) {
-          wallThicknessSelect.value = String(data['wallThickness'] ?? '');
-          wallThicknessSelect.dispatchEvent(new Event('change'));
-        }
-        const customWallThickness = document.getElementById('customWallThickness') as HTMLInputElement;
-        if (customWallThickness && data['customWallThickness']) {
-            customWallThickness.value = String(data['customWallThickness'] ?? '');
-        }
-      }, 0);
-    }
-    
-    // Special handling for parallel coordinates
-    if (data.gasLineOrientation === 'Parallel' || data.parallelLength !== 'N/A') {
-        const parallelLengthInput = document.getElementById('parallelLength') as HTMLInputElement;
-        if (parallelLengthInput && data.parallelLength) {
-            parallelLengthInput.value = String(data.parallelLength ?? '');
-            parallelLengthInput.dispatchEvent(new Event('input', { bubbles: true }));
-
-            setTimeout(() => {
-                if (data.parallelCoordinates && Array.isArray(data.parallelCoordinates)) {
-                    const savedCoords = data.parallelCoordinates;
-                    const latInputs = document.querySelectorAll<HTMLInputElement>('#parallelCoordinatesWrapper input[id^="lat-parallel-"]');
-                    
-                    latInputs.forEach((latInput, i) => {
-                        const index = latInput.id.split('-').pop();
-                        const lngInput = document.getElementById(`lng-parallel-${index}`) as HTMLInputElement;
-
-                        if (savedCoords[i] && lngInput) {
-                            latInput.value = savedCoords[i].lat || '';
-                            lngInput.value = savedCoords[i].lng || '';
-                        }
-                    });
-                }
-            }, 100); // Increased timeout for DOM update
-        }
-    }
-
-    // Clear existing dynamic recommendations before populating
-    const recContainer = document.getElementById('recommendationsContainer');
-    if (recContainer) recContainer.innerHTML = '';
-
-    // Repopulate recommendations
-    if (data.recommendations && Array.isArray(data.recommendations) && data.recommendations.length > 0) {
-        data.recommendations.forEach((recText: string) => {
-            addRecommendation(recText);
-        });
-    } else if (data.recommendationsText) { // Handle legacy save files
-        addRecommendation(data.recommendationsText);
-    }
-    else {
-        // For new forms or empty saves, add one empty box
-        addRecommendation('');
-    }
-
-
-    // Trigger change events to update UI
-    const elementsToUpdate = new Set<HTMLElement | null>([
-      ...Array.from(document.querySelectorAll<HTMLInputElement>('input[name="heatSourceType"]')),
-      ...Array.from(document.querySelectorAll<HTMLInputElement>('input[name="gasLineOrientation"]')),
-      ...Array.from(document.querySelectorAll<HTMLInputElement>('input[name="heatLossEvidenceSource"]')),
-      ...Array.from(document.querySelectorAll<HTMLInputElement>('input[name="insulationConditionSource"]')),
-      ...Array.from(document.querySelectorAll<HTMLInputElement>('input[name="heatSourceBeddingType"]')),
-      ...Array.from(document.querySelectorAll<HTMLInputElement>('input[name="heatSourceBeddingUseCustomK"]')),
-      ...Array.from(document.querySelectorAll<HTMLInputElement>('input[name="gasLineBeddingType"]')),
-      ...Array.from(document.querySelectorAll<HTMLInputElement>('input[name="gasBeddingUseCustomK"]')),
-      document.getElementById('pipelineDiameter'),
-      document.getElementById('gasPipelineDiameter'),
-      document.getElementById('pipeMaterial'),
-      document.getElementById('gasPipeMaterial'),
-      document.getElementById('wallThickness'), // Needs another trigger after population
-      document.getElementById('pipeInsulationType'),
-      document.getElementById('connectionTypes'),
-      document.getElementById('gasOperatorName'),
-      document.getElementById('gasCoatingType'),
-      document.getElementById('soilType')
-    ]);
-    
-    elementsToUpdate.forEach(el => {
-        if (el) {
-            el.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-    });
-
-    // Handle loading gas wall thickness and SDR after a delay
-    setTimeout(() => {
-        if (data.gasPipeWallThickness && data.gasPipeWallThickness !== 'N/A') {
-            const gasWallThicknessSelect = document.getElementById('gasWallThickness') as HTMLSelectElement;
-            const customGasWallThicknessInput = document.getElementById('customGasWallThickness') as HTMLInputElement;
-            
-            // Check if the value exists in the standard options
-            const optionExists = Array.from(gasWallThicknessSelect.options).some(opt => opt.value === data.gasPipeWallThickness);
-
-            if (optionExists) {
-                gasWallThicknessSelect.value = String(data.gasPipeWallThickness);
-            } else {
-                // If it doesn't exist, it's a custom value
-                gasWallThicknessSelect.value = 'custom';
-                customGasWallThicknessInput.value = String(data.gasPipeWallThickness);
-            }
-            gasWallThicknessSelect.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-
-        if (data.gasPipeSDR && data.gasPipeSDR !== 'N/A') {
-            const gasSdrSelect = document.getElementById('gasSdr') as HTMLSelectElement;
-            const customGasSdrInput = document.getElementById('customGasSdr') as HTMLInputElement;
-
-            const optionExists = Array.from(gasSdrSelect.options).some(opt => opt.value === data.gasPipeSDR);
-
-            if (optionExists) {
-                gasSdrSelect.value = String(data.gasPipeSDR);
-            } else {
-                gasSdrSelect.value = 'other';
-                customGasSdrInput.value = String(data.gasPipeSDR);
-            }
-            gasSdrSelect.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-    }, 100);
-
-    // Repopulate final report
-    if (savedData.reportHTML) {
-      const reportContainer = document.getElementById('generated-report-container');
-      const reportActions = document.getElementById('report-actions');
-      if (reportContainer) {
-        reportContainer.innerHTML = savedData.reportHTML;
-        if(savedData.reportHTML.trim()) {
-            reportActions?.classList.remove('hidden');
-        }
-      }
-    }
-
-    if (savedData.questionAnswers) {
-        questionAnswers = savedData.questionAnswers;
-    }
-  };
-
-  if(saveButton) saveButton.addEventListener('click', handleSave);
-  if(loadButton) loadButton.addEventListener('click', () => loadFileInput.click());
-  if(loadFileInput) loadFileInput.addEventListener('change', handleFileSelect);
-
-  // --- Final Report Questionnaire Logic ---
-  const questionnaireWrapper = document.getElementById('report-questionnaire');
-  const generationPromptWrapper = document.getElementById('report-generation-prompt');
-  const reportAdminMessage = document.getElementById('report-admin-only-message');
-  const questionTextEl = document.getElementById('question-text');
-  const questionAnswerTextarea = document.getElementById('question-answer') as HTMLTextAreaElement;
-  const nextQuestionBtn = document.getElementById('next-question-btn') as HTMLButtonElement;
-  const skipQuestionBtn = document.getElementById('skip-question-btn');
-  const clarifyQuestionBtn = document.getElementById('clarify-question-btn') as HTMLButtonElement | null;
-  const currentQNumEl = document.getElementById('current-q-num');
-  const totalQNumEl = document.getElementById('total-q-num');
-  const progressBar = document.getElementById('progress-bar');
-  const generateReportBtn = document.getElementById('generate-report-btn');
   
-  const handleFinalReportTabClick = () => {
-    if (!isAdminAuthenticated) {
-      reportAdminMessage?.classList.remove('hidden');
-      questionnaireWrapper?.classList.add('hidden');
-      generationPromptWrapper?.classList.add('hidden');
-      return;
-    }
-
-    reportAdminMessage?.classList.add('hidden');
-
-    if (!lastCalculationResults) {
-      updateCalculationSummary();
-      const confirmation = confirm("You must run a calculation before generating a final report. Would you like to switch to the Calculation tab now?");
-      if (confirmation) {
-        document.querySelector('.tab-button[data-tab="calculation"]')?.dispatchEvent(new Event('click'));
-      }
-      return;
-    }
-    
-    // Check if questionnaire is done
-    if (currentQuestionIndex >= reportQuestions.length) {
-      questionnaireWrapper?.classList.add('hidden');
-      generationPromptWrapper?.classList.remove('hidden');
-    } else {
-      questionnaireWrapper?.classList.remove('hidden');
-      generationPromptWrapper?.classList.add('hidden');
-      // If starting for the first time
-      if (currentQuestionIndex === -1) {
-        startQuestionnaire();
-      }
-    }
-  };
-
-  const startQuestionnaire = () => {
-    currentQuestionIndex = 0;
-    questionAnswers = [];
-    displayCurrentQuestion();
-  };
-
-  const displayCurrentQuestion = () => {
-    if (currentQuestionIndex >= reportQuestions.length) {
-      questionnaireWrapper?.classList.add('hidden');
-      generationPromptWrapper?.classList.remove('hidden');
-      return;
-    }
-    
-    if(questionTextEl) questionTextEl.textContent = reportQuestions[currentQuestionIndex];
-    questionAnswerTextarea.value = ''; // Clear previous answer
-    questionAnswerTextarea.dispatchEvent(new Event('input')); // for auto-resize
-    if(currentQNumEl) currentQNumEl.textContent = String(currentQuestionIndex + 1);
-    if(totalQNumEl) totalQNumEl.textContent = String(reportQuestions.length);
-
-    if (progressBar) {
-      const progress = ((currentQuestionIndex) / reportQuestions.length) * 100;
-      progressBar.style.width = `${progress}%`;
-    }
-
-    if(nextQuestionBtn) {
-        if (currentQuestionIndex === reportQuestions.length - 1) {
-            nextQuestionBtn.textContent = 'Finish';
-        } else {
-            nextQuestionBtn.textContent = 'Next';
-        }
-    }
-  };
-
-  const saveAndGoToNext = () => {
-    const answer = questionAnswerTextarea.value.trim();
-    if (answer) {
-      questionAnswers.push({
-        question: reportQuestions[currentQuestionIndex],
-        answer: answer,
-        originalQuestion: reportQuestions[currentQuestionIndex]
-      });
-    }
-    currentQuestionIndex++;
-    displayCurrentQuestion();
-  };
-
-  const handleSkip = () => {
-    currentQuestionIndex++;
-    displayCurrentQuestion();
-  };
-
-  const handleClarify = async () => {
-      const apiKey = (document.getElementById('apiKey') as HTMLInputElement)?.value;
-      if (!apiKey) {
-          alert('Please enter your Gemini API Key in the Admin Login tab to use this feature.');
-          document.querySelector('.tab-button[data-tab="admin"]')?.dispatchEvent(new Event('click'));
-          return;
-      }
-      if (!clarifyQuestionBtn) return;
-      
-      clarifyQuestionBtn.textContent = '...';
-      (clarifyQuestionBtn as HTMLButtonElement).disabled = true;
-
-      try {
-          const ai = new GoogleGenAI({ apiKey });
-          const currentQuestion = reportQuestions[currentQuestionIndex];
-          const systemInstruction = "You are an expert in civil and mechanical engineering, specializing in underground utilities like gas and steam lines. Your task is to clarify an engineering question by rephrasing it in a simpler, more direct way, and by providing brief examples of the type of information being sought. Do this in one single paragraph.";
-          const contents = `Clarify this question for an engineer filling out an assessment form: "${currentQuestion}"`;
-          
-          const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents,
-            config: { systemInstruction }
-          });
-          
-          let clarification = 'Could not get clarification.';
-          if (response && typeof response.text === 'string') {
-            clarification = response.text;
-          }
-          alert(`Clarification:\n\n${clarification}`);
-      } catch (error) {
-          console.error("AI Clarification Error:", error);
-          alert(`Failed to get clarification. Please check your API key and the browser console.\n${error instanceof Error ? error.message : ''}`);
-      } finally {
-          clarifyQuestionBtn.textContent = 'Clarify';
-          (clarifyQuestionBtn as HTMLButtonElement).disabled = false;
-      }
-  };
-
-  nextQuestionBtn?.addEventListener('click', saveAndGoToNext);
-  skipQuestionBtn?.addEventListener('click', handleSkip);
-  clarifyQuestionBtn?.addEventListener('click', handleClarify);
-
-  // --- Final Report Generation ---
-  const generateFinalReport = async () => {
-    const apiKey = (document.getElementById('apiKey') as HTMLInputElement)?.value;
-    if (!apiKey) {
-      alert('Please enter your Gemini API Key in the Admin Login tab to generate the report.');
-      document.querySelector('.tab-button[data-tab="admin"]')?.dispatchEvent(new Event('click'));
-      return;
-    }
-
-    const spinner = document.getElementById('report-loading-spinner');
-    const reportContainer = document.getElementById('generated-report-container');
-    const reportActions = document.getElementById('report-actions');
-
-    if(spinner) spinner.classList.remove('hidden');
-    if(reportContainer) reportContainer.innerHTML = '';
-    if(reportActions) reportActions.classList.add('hidden');
-    
-    try {
-      const ai = new GoogleGenAI({ apiKey });
-      const formData = getFormData();
-      
-      let systemInstruction = `You are a professional engineering consultant specializing in the safety and integrity of underground utility infrastructure, particularly natural gas distribution systems and high-temperature pipelines (steam, hot water). Your task is to generate a formal, comprehensive "Thermal–Gas Line Encroachment Assessment Report" based on the provided data.
-
-      The report must be structured with the following sections, in this exact order:
-      1.  **Executive Summary:** Start with a brief, high-level overview. State the purpose of the assessment, the location, and the single most critical finding (e.g., "the calculated gas line temperature is [X]°F, which is [above/below] the material's maximum allowable limit of [Y]°F"). Conclude with a summary of the primary recommendation.
-      2.  **Introduction:** Detail the project name, location, date of assessment, and the names of the evaluators. Provide a clear description of the project's scope and objectives.
-      3.  **Data Summary:** Present all the input data in a structured, easy-to-read format. Use tables for clarity where appropriate. Create distinct subsections for "Heat Source Data," "Gas Line Data," "Soil & Bedding Data," and "Field Visit Observations." You MUST include all provided data points; if a value is "N/A" or "Unknown," state that explicitly. This includes all operator contact information, 811 status, confirmation dates, etc. The "Field Visit" section is critical and must include all notes from the on-site visit.
-      4.  **Analysis & Calculation Results:** This is a critical section. First, explain the methodology used for the thermal analysis in simple terms (e.g., "A steady-state heat transfer model based on thermal resistance was used..."). Then, present the key calculated results clearly, especially the "Calculated Temperature at Gas Line Surface." Compare this calculated temperature directly to the gas line's maximum allowable temperature.
-          - If the gas line is **coated steel**, use the specific coating's maximum temperature limit for this comparison.
-          - If the gas line is **plastic (HDPE, MDPE, etc.)**, you MUST state that while the material has a higher nominal temperature limit (e.g., 140°F), a conservative **operational limit of 70°F** is being enforced for this assessment to ensure long-term safety and prevent material degradation. The primary comparison, risk assessment, and conclusions MUST be based on this 70°F limit. Mention the material's actual limits for context but emphasize the 70°F operational constraint.
-      5.  **Risk Assessment:** Based on the analysis, evaluate the potential risks. Synthesize information from the questionnaire answers, field visit observations, and the calculated results. Discuss the likelihood and consequences of the gas line's temperature exceeding its limit, referencing relevant standards like 49 CFR 192, ASME B31.8, and operator-specific guidelines. Consider factors like material degradation (e.g., PE softening, coating disbondment), potential for pressure de-rating, and public safety implications.
-      6.  **Conclusions:** Summarize the findings of the assessment in a clear, numbered list. Each conclusion must be a direct result of the data and analysis.
-      7.  **Recommendations:** This is the most important section. Provide a numbered list of clear, actionable recommendations. Each recommendation must be justified by the findings and directly address the identified risks. **You must professionally rephrase and integrate all of the user-provided recommendations from the form data's "recommendations" array.** These are non-negotiable and must be included. Then, generate any additional recommendations you deem necessary based on the full data set. Reference relevant regulations (49 CFR 192, ASME B31.8, GTPC Guidelines) to support your recommendations.
-      
-      **Formatting and Tone:**
-      - Use a formal, objective, and professional tone suitable for an engineering report.
-      - Use Markdown for formatting (headings, bold text, bullet points, tables).
-      - Ensure all numerical values are presented with their correct units (e.g., °F, psig, feet, inches).
-      - Be precise and unambiguous in your language.
-      - Convert the final markdown to HTML.
-      - Use a clean, professional HTML structure with appropriate tags (<h1>, <h2>, <h3>, <p>, <ul>, <li>, <table>, <th>, <tr>, <td>).`;
-      
-      let contents = `
-        Here is the data for the assessment:
-        - **Form Data:** ${JSON.stringify(formData, null, 2)}
-        - **Calculation Results:** ${JSON.stringify(lastCalculationResults, null, 2)}
-        - **Questionnaire Answers:** ${JSON.stringify(questionAnswers, null, 2)}
-        
-        Please generate the report.
-      `;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents,
-        config: { systemInstruction }
-      });
-      
-      let reportHtml = '';
-      if (response && typeof response.text === 'string') {
-        reportHtml = response.text;
-      }
-
-      if(reportContainer) reportContainer.innerHTML = reportHtml;
-      if(reportActions) reportActions.classList.remove('hidden');
-
-    } catch(error) {
-        console.error("Final Report Generation Error:", error);
-        if (reportContainer) {
-          reportContainer.innerHTML = `<div class="calculation-error"><h3>Report Generation Failed</h3><p>An error occurred while generating the report. Please check your API key and the browser console for details.</p><p>${error instanceof Error ? error.message : 'Unknown error'}</p></div>`;
-        }
-    } finally {
-        if(spinner) spinner.classList.add('hidden');
-    }
-  };
-
-  generateReportBtn?.addEventListener('click', generateFinalReport);
-
-  document.getElementById('send-to-pdf-btn')?.addEventListener('click', () => {
-    // Temporarily remove the print button from the DOM before printing
-    const reportActions = document.getElementById('report-actions');
-    const wasHidden = reportActions?.classList.contains('hidden');
-    reportActions?.classList.add('hidden');
-
-    window.print();
-    
-    // Add the button back after printing dialog is closed
-    if(reportActions && !wasHidden) {
-        reportActions.classList.remove('hidden');
-    }
-  });
+  document.getElementById('addRecommendationButton')?.addEventListener('click', () => addRecommendation());
 
 
   // --- Calculation Logic ---
-  document.getElementById('calculateButton')?.addEventListener('click', () => {
-    const data = getFormData();
-    const resultsContainer = document.getElementById('resultsContainer')!;
+  const handleCalculate = () => {
+    const resultsContainer = document.getElementById('resultsContainer');
+    if (!resultsContainer) return;
     resultsContainer.innerHTML = '';
     
-    const errors: string[] = [];
+    const data = getFormData();
     
-    // Validation
-    if (!data.isHeatSourceApplicable) {
-      errors.push("No applicable heat source selected in the 'Heat Source Data' tab. Cannot perform calculation.");
-    }
-    if (!data.maxTemp) errors.push("Heat Source Max Operating Temperature is required.");
-    if (!data.pipelineDiameter || data.pipelineDiameter === 'N/A') errors.push("Heat Source Pipeline Nominal Diameter is required.");
-    if (!data.heatSourcePipeMaterial || data.heatSourcePipeMaterial === 'N/A') errors.push("Heat Source Pipe Material is required.");
-    if (!data.heatSourceWallThickness || data.heatSourceWallThickness === 'N/A') errors.push("Heat Source Pipe Wall Thickness is required.");
-    if (data.insulationType !== 'None' && (!data.insulationThickness)) {
-      errors.push("Insulation Thickness is required when insulation is specified.");
-    }
-    if (!data.heatSourceDepth) errors.push("Heat Source Depth is required.");
-    if (!data.gasPipelineDiameter || data.gasPipelineDiameter === 'N/A') errors.push("Gas Line Pipeline Nominal Diameter is required.");
-    if (!data.gasPipeMaterial || data.gasPipeMaterial === 'N/A') errors.push("Gas Pipeline Material is required.");
-    if (!data.depthOfBurialGasLine) errors.push("Depth of Gas Line is required.");
-    if (data.gasLineOrientation === 'Parallel' && !data.parallelDistance) {
-      errors.push("Distance between lines is required for parallel orientation.");
-    }
-    if (!data.soilType || data.soilType === 'N/A') errors.push("Native Soil Type is required.");
-    if (!data.soilThermalConductivity) errors.push("Native Soil Thermal Conductivity is required.");
-    if (!data.groundSurfaceTemperature) errors.push("Average Ground Surface Temperature is required.");
+    // --- Input Validation ---
+    const requiredFields = [
+      // Heat Source
+      { id: 'maxTemp', name: 'Max Operating Temp', condition: data.isHeatSourceApplicable },
+      { id: 'pipelineDiameter', name: 'Heat Source Pipeline Nominal Diameter', condition: data.isHeatSourceApplicable },
+      { id: 'pipeMaterial', name: 'Heat Source Pipe Material', condition: data.isHeatSourceApplicable },
+      { id: 'wallThickness', name: 'Heat Source Pipe Wall Thickness', condition: data.isHeatSourceApplicable },
+      { id: 'pipeInsulationType', name: 'Heat Source Pipe Insulation Type', condition: data.isHeatSourceApplicable },
+      { id: 'heatSourceDepth', name: 'Heat Source Depth', condition: data.isHeatSourceApplicable },
+      // Gas Line
+      { id: 'gasPipelineDiameter', name: 'Gas Line Pipeline Nominal Diameter', condition: true },
+      { id: 'gasPipeMaterial', name: 'Gas Pipeline Material', condition: true },
+      { id: 'depthOfBurialGasLine', name: 'Gas Line Depth of Burial', condition: true },
+      // Soil
+      { id: 'soilType', name: 'Native Soil Type', condition: true },
+      { id: 'soilThermalConductivity', name: 'Native Soil Thermal Conductivity', condition: true },
+      { id: 'averageGroundTemperature', name: 'Average Ground Temperature', condition: true },
+    ];
 
-    if (errors.length > 0) {
-      const errorList = errors.map(e => `<li>${e}</li>`).join('');
-      resultsContainer.innerHTML = `<div class="calculation-error"><h3>Missing Information</h3><p>Please provide the following required information to perform the calculation:</p><ul>${errorList}</ul></div>`;
-      resultsContainer.classList.remove('hidden');
-      return;
+    if(data.gasLineOrientation === 'Parallel' && data.isHeatSourceApplicable) {
+      requiredFields.push({ id: 'parallelDistance', name: 'Parallel Centerline Distance', condition: true });
     }
 
-    try {
-      // --- Calculations ---
-      const T_hs = parseFloat(data.maxTemp);
-      const T_surface = parseFloat(data.groundSurfaceTemperature);
+    const getElVal = (id: string) => (document.getElementById(id) as HTMLInputElement | HTMLSelectElement)?.value;
+
+    const missingFields = requiredFields.filter(field => field.condition && !getElVal(field.id));
+    
+    if (missingFields.length > 0 || !data.isHeatSourceApplicable) {
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'calculation-error';
       
-      const D_hs_nominal_in = parseFloat(data.pipelineDiameter);
-      const D_hs_outer_in = npsToOdMapping[String(D_hs_nominal_in)];
-      const t_hs_wall_in = parseFloat(data.heatSourceWallThickness.replace(/[^0-9.]/g, ''));
-      const D_hs_inner_in = D_hs_outer_in - (2 * t_hs_wall_in);
+      const title = document.createElement('h3');
+      title.textContent = !data.isHeatSourceApplicable ? 'Calculation Skipped' : 'Missing Required Fields';
+      errorDiv.appendChild(title);
       
-      const D_hs_outer_ft = D_hs_outer_in / 12;
-      const D_hs_inner_ft = D_hs_inner_in / 12;
-
-      const k_pipe_material_str = data.heatSourcePipeMaterial;
-      let k_pipe: number;
-      if(k_pipe_material_str.startsWith('Other:')) {
-          k_pipe = parseFloat((document.getElementById('customThermalConductivity') as HTMLInputElement).value);
-          if(isNaN(k_pipe)) throw new Error("Custom pipe material thermal conductivity is not a valid number.");
+      if (!data.isHeatSourceApplicable) {
+        const message = document.createElement('p');
+        message.textContent = 'No applicable heat source was selected. Please select a heat source type on the "Heat Source Data" tab to run a calculation.';
+        errorDiv.appendChild(message);
       } else {
-          const materialKey = (document.getElementById('pipeMaterial') as HTMLSelectElement).value;
-          k_pipe = pipeMaterialData[materialKey as keyof typeof pipeMaterialData].thermalConductivity;
-      }
-      
-      const R_pipe_wall = Math.log(D_hs_outer_ft / D_hs_inner_ft) / (2 * Math.PI * k_pipe);
-      
-      let R_insulation = 0;
-      let D_ins_outer_ft: number | undefined;
-
-      if (data.insulationType !== 'None') {
-        const t_ins_in = parseFloat(data.insulationThickness);
-        D_ins_outer_ft = (D_hs_outer_in + (2 * t_ins_in)) / 12;
-        
-        let k_ins: number;
-        if(data.insulationType.startsWith('Other:')) {
-            k_ins = parseFloat(data.customInsulationThermalConductivity);
-            if(isNaN(k_ins)) throw new Error("Custom insulation thermal conductivity is not a valid number.");
-        } else {
-            const heatSourceType = document.querySelector<HTMLInputElement>('input[name="heatSourceType"]:checked')?.value;
-            const insulationKey = (document.getElementById('pipeInsulationType') as HTMLSelectElement).value;
-            if(heatSourceType === 'steam' || heatSourceType === 'superHeatedHotWater') {
-              k_ins = insulationData.steam[insulationKey].thermalConductivity;
-            } else if (heatSourceType === 'hotWater') {
-              k_ins = insulationData.hotWater[insulationKey].thermalConductivity;
-            } else {
-                throw new Error("Could not determine insulation thermal conductivity for the selected heat source.");
-            }
-        }
-        R_insulation = Math.log(D_ins_outer_ft / D_hs_outer_ft) / (2 * Math.PI * k_ins);
-      }
-      
-      const Z_hs_ft = parseFloat(data.heatSourceDepth);
-      const k_soil = parseFloat(data.soilThermalConductivity);
-      const R_surface_ft = data.insulationType !== 'None' ? D_ins_outer_ft! / 2 : D_hs_outer_ft / 2;
-      
-      const R_soil_hs = Math.log((2 * Z_hs_ft - R_surface_ft) / R_surface_ft) / (2 * Math.PI * k_soil);
-      
-      const R_total = R_pipe_wall + R_insulation + R_soil_hs;
-      
-      const delta_T = T_hs - T_surface;
-      const Q = delta_T / R_total; // Heat loss per unit length (BTU/hr·ft)
-      
-      const D_gas_nominal_in = parseFloat(data.gasPipelineDiameter);
-      const D_gas_od_in = getGasPipeOd(String(D_gas_nominal_in), data.gasPipeSizingStandard);
-      const D_gas_od_ft = D_gas_od_in / 12;
-      const Z_gas_ft = parseFloat(data.depthOfBurialGasLine);
-
-      // --- Calculate Temperature at Gas Line ---
-      let T_gas_line: number;
-
-      if(data.gasLineOrientation === 'Perpendicular') {
-          // CORRECTED: Using the method of images for a line source at the intersection point.
-          // The temperature T at point (x,y) from a line source at (0, Z_hs) is:
-          // T(x,y) = T_surface + (Q / 4*pi*k) * ln( (x^2+(y+Z_hs)^2) / (x^2+(y-Z_hs)^2) )
-          // At the intersection point, x=0, and the gas line is at depth y=Z_gas_ft.
-          // The formula simplifies to T = T_surface + (Q / 2*pi*k) * ln( (Z_hs+Z_gas) / |Z_hs-Z_gas| )
-          const term1 = Z_hs_ft + Z_gas_ft;
-          const term2 = Math.abs(Z_hs_ft - Z_gas_ft);
-          
-          // Prevent division by zero or log of infinity if depths are identical.
-          // This indicates an intersection, a critical failure state. The temperature
-          // would theoretically be infinite. We'll cap it at the heat source temp as a
-          // conservative, worst-case estimation for a near-contact scenario.
-          if (term2 < 0.001) { // Use a small epsilon for float comparison
-             T_gas_line = T_hs;
-          } else {
-             T_gas_line = T_surface + (Q / (2 * Math.PI * k_soil)) * Math.log(term1 / term2);
-          }
-      } else { // Parallel
-          // The parallel calculation uses the correct method of images, accounting for the
-          // distance to the image source vs. the real source. It also refines the calculation by
-          // finding the temperature at the edge of the gas pipe closest to the heat source for a
-          // worst-case analysis at that point.
-          const C_ft = parseFloat(data.parallelDistance);
-          const x_target_edge = C_ft - (D_gas_od_ft / 2);
-          
-          // Distance from gas pipe's closest edge to the real heat source center
-          const dist_to_source = Math.sqrt(Math.pow(x_target_edge, 2) + Math.pow(Z_gas_ft - Z_hs_ft, 2));
-          // Distance from gas pipe's closest edge to the image heat source center (image is at -Z_hs_ft)
-          const dist_to_image = Math.sqrt(Math.pow(x_target_edge, 2) + Math.pow(Z_gas_ft + Z_hs_ft, 2));
-
-          // Prevent division by zero if pipes are at same location.
-          if (dist_to_source < 0.001) {
-            T_gas_line = T_hs;
-          } else {
-            T_gas_line = T_surface + (Q / (2 * Math.PI * k_soil)) * Math.log(dist_to_image / dist_to_source);
-          }
+        const list = document.createElement('ul');
+        missingFields.forEach(field => {
+            const item = document.createElement('li');
+            item.textContent = field.name;
+            list.appendChild(item);
+        });
+        errorDiv.appendChild(list);
       }
 
-      const tempRise = T_gas_line - T_surface;
-      const heatFlux = Q / (Math.PI * D_gas_od_ft);
-
-      // --- Store results for final report ---
-      const scenarioDetails: ScenarioDetails = {
-        Q,
-        T_gas_line,
-        delta_T,
-        R_pipe_wall,
-        R_insulation,
-        R_soil_hs,
-        R_total,
-        D_hs_outer_ft,
-        D_hs_inner_ft,
-        R_surface_ft: R_surface_ft,
-        x_target_edge: 0,
-        y_target_edge: 0
-      };
-      if (data.insulationType !== 'None') scenarioDetails.D_ins_outer_ft = D_ins_outer_ft;
-      
-      if (data.gasLineOrientation === 'Parallel') {
-        const C_ft = parseFloat(data.parallelDistance);
-        const x_target_edge = C_ft - (D_gas_od_ft / 2);
-        const y_target_edge = Z_hs_ft - Z_gas_ft;
-        const r_equiv_ft = Math.sqrt(Math.pow(x_target_edge, 2) + Math.pow(y_target_edge, 2));
-        scenarioDetails.x_target_edge = x_target_edge;
-        scenarioDetails.y_target_edge = y_target_edge;
-        scenarioDetails.r_equiv_ft = r_equiv_ft;
-      }
-
-      lastCalculationResults = {
-          'Calculated Temperature at Gas Line Surface (°F)': T_gas_line.toFixed(2),
-          'Temperature Rise Above Ground (°F)': tempRise.toFixed(2),
-          'Heat Flux at Gas Pipe Surface (BTU/hr·ft²)': heatFlux.toFixed(2),
-          'Heat Loss per Unit Length (Q, BTU/hr·ft)': Q.toFixed(2),
-          'Total Thermal Resistance (R_total, hr·ft·°F/BTU)': R_total.toFixed(4),
-          'Pipe Wall Thermal Resistance (hr·ft·°F/BTU)': R_pipe_wall.toFixed(4),
-          'Insulation Thermal Resistance (hr·ft·°F/BTU)': R_insulation.toFixed(4),
-          'Soil Thermal Resistance (hr·ft·°F/BTU)': R_soil_hs.toFixed(4),
-      };
-
-      // --- Display Results ---
-      let resultsHTML = `<h3>Calculation Results</h3>`;
-
-      // Check for temperature warning
-      let tempWarningMessage = '';
-      const gasMaterialValue = data.gasPipeMaterialValue;
-      if (gasMaterialValue === 'coated-steel-protected' || gasMaterialValue === 'coated-steel-unprotected') {
-          const maxTempStr = data.gasCoatingMaxTemp;
-          if (maxTempStr && maxTempStr !== 'N/A' && maxTempStr !== 'Custom') {
-              const maxAllowableTemp = parseFloat(maxTempStr);
-              if (T_gas_line > maxAllowableTemp) {
-                  tempWarningMessage = `<div class="calculation-warning">
-                      <strong>Warning:</strong> The calculated gas line temperature of <strong>${T_gas_line.toFixed(2)}°F</strong> exceeds the maximum allowable temperature of <strong>${maxAllowableTemp}°F</strong> for the selected '${data.gasCoatingType}' coating.
-                  </div>`;
-              }
-          }
-      } else if (['hdpe', 'mdpe', 'aldyl'].includes(gasMaterialValue)) {
-          const operationalLimit = 70;
-          const continuousLimit = data.gasPipeContinuousLimit || '140';
-          if (T_gas_line > operationalLimit) {
-              tempWarningMessage = `<div class="calculation-warning">
-                  <strong>Warning:</strong> The calculated gas line temperature of <strong>${T_gas_line.toFixed(2)}°F</strong> exceeds the maximum operational limit of <strong>${operationalLimit}°F</strong> for plastic pipes.
-                  <p style="margin-top: 0.5rem; font-size: 0.9em; font-weight: 400;">This is a conservative operational limit to ensure long-term integrity and prevent material degradation. The nominal continuous temperature limit for this material is ${continuousLimit}°F.</p>
-              </div>`;
-          }
-      }
-      
-      resultsHTML += tempWarningMessage;
-
-      resultsHTML += `<div class="result-group">
-        <div class="result-item"><span class="result-label">Calculated Temperature at Gas Line Surface:</span><span class="result-value">${T_gas_line.toFixed(2)} °F</span></div>
-        <div class="result-item"><span class="result-label">Temperature Rise Above Ground:</span><span class="result-value">${tempRise.toFixed(2)} °F</span></div>
-        <div class="result-item"><span class="result-label">Heat Flux at Gas Pipe Surface:</span><span class="result-value">${heatFlux.toFixed(2)} BTU/hr·ft²</span></div>
-      </div>`;
-
-      resultsHTML += `<div class="result-group">
-        <h4>Intermediate Values</h4>
-        <div class="result-item"><span class="result-label">Heat Loss per Unit Length (Q):</span><span>${Q.toFixed(2)} BTU/hr·ft</span></div>
-        <div class="result-item"><span class="result-label">Total Thermal Resistance (R_total):</span><span>${R_total.toFixed(4)} hr·ft·°F/BTU</span></div>
-        <div class="result-item"><span class="result-label">&nbsp;&nbsp;&nbsp;Pipe Wall Resistance (R_pipe_wall):</span><span>${R_pipe_wall.toFixed(4)} hr·ft·°F/BTU</span></div>
-        <div class="result-item"><span class="result-label">&nbsp;&nbsp;&nbsp;Insulation Resistance (R_insulation):</span><span>${R_insulation.toFixed(4)} hr·ft·°F/BTU</span></div>
-        <div class="result-item"><span class="result-label">&nbsp;&nbsp;&nbsp;Soil Resistance (R_soil_hs):</span><span>${R_soil_hs.toFixed(4)} hr·ft·°F/BTU</span></div>
-      </div>`;
-      
-      if (data.insulationType !== 'None') {
-          resultsHTML += `<div class="insulation-summary">
-              <h4>Insulation Impact Summary</h4>
-              <div class="summary-fact">
-                  <span class="summary-fact-label">Heat Loss without Insulation (Q):</span>
-                  <span class="summary-fact-value">${(delta_T / (R_pipe_wall + R_soil_hs)).toFixed(2)} BTU/hr·ft</span>
-              </div>
-              <div class="summary-fact">
-                  <span class="summary-fact-label">Heat Loss Reduction due to Insulation:</span>
-                  <span class="summary-fact-value">${(((delta_T / (R_pipe_wall + R_soil_hs)) - Q) / (delta_T / (R_pipe_wall + R_soil_hs)) * 100).toFixed(1)}%</span>
-              </div>
-          </div>`;
-      }
-
-      resultsContainer.innerHTML = resultsHTML;
-      resultsContainer.classList.remove('hidden');
-
-      // --- Generate LaTeX Report ---
-      generateAndDisplayLatexReport(data, lastCalculationResults);
-      
-
-    } catch(e) {
-      console.error(e);
-      resultsContainer.innerHTML = `<div class="calculation-error"><h3>Calculation Failed</h3><p>An error occurred during calculation. Please check your inputs and ensure all values are valid numbers. The console may have more details.</p><p>${(e as Error).message}</p></div>`;
+      resultsContainer.appendChild(errorDiv);
       resultsContainer.classList.remove('hidden');
       lastCalculationResults = null;
-      document.getElementById('latexContainer')?.classList.add('hidden');
-      document.getElementById('latexPlaceholder')?.classList.remove('hidden');
+      return;
     }
-  });
+    
+    // --- Calculation Function ---
+    const runHeatTransferCalc = (isWorstCase: boolean) => {
+      // --- 1. Get Inputs and Convert to Feet ---
+      const T_hs = parseFloat(data.maxTemp);
+      const T_surface = parseFloat(data.averageGroundTemperature);
+      const D_hs_nominal = getSelectedText('pipelineDiameter');
+      
+      // Heat Source Pipe Dimensions
+      const D_hs_outer_in = npsToOdMapping[D_hs_nominal];
+      const t_hs_wall_in = parseFloat(data.heatSourceWallThickness);
+      const D_hs_inner_in = D_hs_outer_in - (2 * t_hs_wall_in);
+      
+      // Insulation Dimensions
+      const t_ins_in = isWorstCase || data.insulationType === 'None' ? 0 : parseFloat(data.insulationThickness);
+      const D_ins_outer_in = D_hs_outer_in + (2 * t_ins_in);
 
-  const generateAndDisplayLatexReport = (data: ReturnType<typeof getFormData>, results: any) => {
-    const latexContainer = document.getElementById('latexContainer');
-    const latexPlaceholder = document.getElementById('latexPlaceholder');
-    const latexOutputEl = document.getElementById('latexReportOutput');
-    if (!latexContainer || !latexPlaceholder || !latexOutputEl) return;
-  
-    const escapeLatex = (str: string | undefined | null): string => {
-      if (!str) return 'N/A';
-      return str.replace(/&/g, '\\&').replace(/%/g, '\\%').replace(/\$/g, '\\$').replace(/#/g, '\\#').replace(/_/g, '\\_').replace(/\{/g, '\\{').replace(/\}/g, '\\}').replace(/~/g, '\\textasciitilde{}').replace(/\^/g, '\\textasciicircum{}').replace(/\\/g, '\\textbackslash{}');
-    };
-  
-    const formatValue = (value: any, unit = ''): string => {
-      const valStr = String(value).trim();
-      if (valStr === '' || valStr === 'N/A' || valStr === 'null' || valStr === 'undefined') {
-        return 'N/A';
+      // Bedding Dimensions
+      let D_bed_outer_in = D_ins_outer_in;
+      if (data.heatSourceBeddingType === 'sand') {
+          // Approximate the bedding as a circle with a diameter equal to the insulation OD plus average bedding thickness
+          const avgBedding = (
+              parseFloat(data.heatSourceBeddingTop || '0') +
+              parseFloat(data.heatSourceBeddingBottom || '0') +
+              parseFloat(data.heatSourceBeddingLeft || '0') +
+              parseFloat(data.heatSourceBeddingRight || '0')
+          ) / 4;
+          D_bed_outer_in += (2 * avgBedding);
       }
-      return `${escapeLatex(valStr)}${unit ? ` ${unit}` : ''}`;
+
+      // Convert all inches to feet for calculation
+      const D_hs_outer = D_hs_outer_in / 12;
+      const D_hs_inner = D_hs_inner_in / 12;
+      const D_ins_outer = D_ins_outer_in / 12;
+      const D_bed_outer = D_bed_outer_in / 12;
+
+      // --- 2. Get Thermal Conductivities (k values) ---
+      let k_pipe: number;
+      if (getVal('pipeMaterial') === 'other') {
+          k_pipe = parseFloat(getVal('customThermalConductivity'));
+      } else {
+          k_pipe = pipeMaterialData[getVal('pipeMaterial') as keyof typeof pipeMaterialData]?.thermalConductivity || 0;
+      }
+      
+      let k_ins: number;
+      const insulationVal = getVal('pipeInsulationType');
+      if (isWorstCase || insulationVal === 'none') {
+          k_ins = 0; // No insulation
+      } else if (insulationVal === 'other') {
+          k_ins = parseFloat(getVal('customInsulationThermalConductivity'));
+      } else {
+          const heatSourceType = getRadioVal('heatSourceType');
+          let insulationOptions: { [key: string]: { name: string; thermalConductivity: number } } = {};
+          if (heatSourceType === 'steam' || heatSourceType === 'superHeatedHotWater') {
+              insulationOptions = insulationData.steam;
+          } else if (heatSourceType === 'hotWater') {
+              insulationOptions = insulationData.hotWater;
+          } else if (heatSourceType === 'other') {
+              insulationOptions = { ...insulationData.steam, ...insulationData.hotWater };
+          }
+          k_ins = insulationOptions[insulationVal]?.thermalConductivity || 0;
+      }
+
+      let k_bed_hs: number;
+      if (data.heatSourceBeddingType === 'sand') {
+        k_bed_hs = data.heatSourceBeddingUseCustomK === 'yes' ? parseFloat(data.heatSourceBeddingCustomK) : 0.20;
+      } else {
+        k_bed_hs = 0; // No bedding layer
+      }
+
+      const k_soil = parseFloat(data.soilThermalConductivity);
+
+      // --- 3. Calculate Thermal Resistances (R values) ---
+      const R_pipe_wall = (k_pipe > 0) ? Math.log(D_hs_outer / D_hs_inner) / (2 * Math.PI * k_pipe) : 0;
+      const R_insulation = (k_ins > 0) ? Math.log(D_ins_outer / D_hs_outer) / (2 * Math.PI * k_ins) : 0;
+      const R_bedding_hs = (k_bed_hs > 0) ? Math.log(D_bed_outer / D_ins_outer) / (2 * Math.PI * k_bed_hs) : 0;
+      
+      const r_outer_for_soil = D_bed_outer > D_ins_outer ? D_bed_outer / 2 : D_ins_outer / 2;
+      const Z_hs = parseFloat(data.heatSourceDepth);
+      const R_soil_hs = (k_soil > 0) ? Math.log((2 * Z_hs - r_outer_for_soil) / r_outer_for_soil) / (2 * Math.PI * k_soil) : Infinity;
+
+      const R_total = R_pipe_wall + R_insulation + R_bedding_hs + R_soil_hs;
+      
+      // --- 4. Calculate Heat Loss (Q) ---
+      const Q = (T_hs - T_surface) / R_total;
+      
+      // --- 5. Calculate Gas Line Temperature (Homogeneous Soil) ---
+      const Z_gas = parseFloat(data.depthOfBurialGasLine);
+      let T_gas_line: number;
+      let separation_distance: number;
+      let orientation_formula_used: string;
+      const C = parseFloat(data.parallelDistance);
+      const lateral_offset_ft = parseFloat(data.lateralOffset || '0');
+      const angle_deg = parseFloat(data.crossingAngle || '90');
+      
+      if (data.gasLineOrientation === 'Crossing / Perpendicular') {
+          const D = Math.sqrt(Math.pow(Z_hs - Z_gas, 2) + Math.pow(lateral_offset_ft, 2));
+          separation_distance = D;
+          
+          const temp_rise_factor = Q / (2 * Math.PI * k_soil);
+
+          // Perpendicular Case Temp
+          const log_term_perp = Math.log((Z_hs + Z_gas) / D);
+          const T_gas_perp = T_surface + temp_rise_factor * log_term_perp;
+
+          // Parallel Case Temp
+          const d_image_para = Math.sqrt(Math.pow(Z_hs + Z_gas, 2) + Math.pow(lateral_offset_ft, 2));
+          const log_term_para = Math.log(d_image_para / D);
+          const T_gas_para = T_surface + temp_rise_factor * log_term_para;
+
+          if (angle_deg >= 90) {
+              T_gas_line = T_gas_perp;
+              orientation_formula_used = 'Perpendicular';
+          } else if (angle_deg <= 0) {
+              T_gas_line = T_gas_para;
+              orientation_formula_used = 'Parallel';
+          } else {
+              const angle_rad = angle_deg * Math.PI / 180;
+              const w = Math.sin(angle_rad); // Weight: 1 for 90deg, 0 for 0deg
+              T_gas_line = w * T_gas_perp + (1 - w) * T_gas_para;
+              orientation_formula_used = `Blended (Angle: ${angle_deg}°)`;
+          }
+
+      } else { // Parallel
+          const d_source = Math.sqrt(Math.pow(Z_hs - Z_gas, 2) + Math.pow(C, 2));
+          separation_distance = d_source;
+          const d_image = Math.sqrt(Math.pow(Z_hs + Z_gas, 2) + Math.pow(C, 2));
+          T_gas_line = T_surface + (Q / (2 * Math.PI * k_soil)) * Math.log(d_image / d_source);
+          orientation_formula_used = 'Parallel';
+      }
+      
+      // --- 6. Calculate Ground Surface Temperature (1 inch below grade) ---
+      const y_surface = 1 / 12; // 1 inch in feet
+      const T_ground_surface_above_hs = T_surface + (Q / (2 * Math.PI * k_soil)) * Math.log((y_surface + Z_hs) / (Z_hs - y_surface));
+
+      // --- 7. Calculate Gas Line Temperature Correction for Bedding ---
+      let T_gas_line_layered = NaN;
+      let r_g = NaN, r_b = NaN, k_bed_gas = NaN;
+
+      if (data.gasLineBeddingType === 'sand') {
+          k_bed_gas = data.gasBeddingUseCustomK === 'yes' ? parseFloat(data.gasBeddingCustomK) : 0.20;
+          
+          const D_gas_nominal = getSelectedText('gasPipelineDiameter');
+          const D_gas_outer_in = getGasPipeOd(D_gas_nominal, data.gasPipeSizingStandard);
+          r_g = (D_gas_outer_in / 12) / 2; // gas pipe outer radius in feet
+      
+          // Average bedding thickness in feet, default to 6 inches (0.5 ft total) if inputs are empty
+          const avg_bedding_thickness_in = (
+              parseFloat(data.gasBeddingTop || '6') +
+              parseFloat(data.gasBeddingBottom || '6') +
+              parseFloat(data.gasBeddingLeft || '6') +
+              parseFloat(data.gasBeddingRight || '6')
+          ) / 4;
+          const bedding_thickness_ft = avg_bedding_thickness_in / 12;
+      
+          r_b = r_g + bedding_thickness_ft;
+      
+          if (k_soil > 0 && k_bed_gas > 0 && r_b > r_g) {
+              const delta_T_bedding = (Q / (2 * Math.PI)) * Math.log(r_b / r_g) * ((1 / k_bed_gas) - (1 / k_soil));
+              T_gas_line_layered = T_gas_line + delta_T_bedding;
+          }
+      }
+      
+      return {
+          R_pipe_wall, R_insulation, R_bedding_hs, R_soil_hs, R_total, Q,
+          T_gas_line, T_ground_surface_above_hs, k_ins, t_ins_in,
+          T_gas_line_layered,
+          separation_distance,
+          orientation_formula_used,
+          inputs: {
+              T_hs, T_surface, D_hs_outer, D_hs_inner, D_ins_outer, D_bed_outer,
+              k_pipe, k_ins, k_bed_hs, k_soil, Z_hs, Z_gas, C, lateral_offset_ft,
+              angle_deg, r_g, r_b, k_bed_gas, r_soil_i: r_outer_for_soil
+          }
+      };
     };
 
-    const formatLongText = (text: string | undefined | null): string => {
-        if (!text) return 'N/A';
-        return `\\\\ \\parbox[t]{\\dimexpr\\linewidth-9em}{${escapeLatex(text)}}`;
+    // --- Execute Calculations ---
+    const asIsResults = runHeatTransferCalc(false);
+    let worstCaseResults = null;
+    if (asIsResults.k_ins > 0) { // Only run worst case if there's insulation to begin with
+      worstCaseResults = runHeatTransferCalc(true);
     }
-  
-    const formatItem = (label: string, value: string | undefined | null): string => `\\item[\\textbf{${label}:}] ${value ?? 'N/A'}`;
-    const beginList = '\\begin{description}[font=\\normalfont, style=unboxed, leftmargin=0pt]';
-    const endList = '\\end{description}';
-  
-    let latexString = `\\documentclass{article}
-\\usepackage[utf8]{inputenc}
-\\usepackage{geometry}
-\\usepackage{enumitem}
-\\geometry{a4paper, margin=1in}
+    
+    lastCalculationResults = { asIs: asIsResults, worstCase: worstCaseResults };
 
-\\begin{document}
+    // --- Display Results ---
+    const createResultGroup = (title: string, results: any) => {
+      const group = document.createElement('div');
+      group.className = 'result-group';
+      const heading = document.createElement('h3');
+      heading.textContent = title;
+      group.appendChild(heading);
+      
+      const insulationSummary = document.createElement('div');
+      insulationSummary.className = 'insulation-summary';
+      insulationSummary.innerHTML = `
+        <h4>Insulation Details:</h4>
+        <div class="summary-fact">
+          <span>Insulation Type:</span>
+          <span>${results.k_ins > 0 ? getSelectedText('pipeInsulationType').replace(/ \(.*\)/, '') : 'None'}</span>
+        </div>
+        <div class="summary-fact">
+          <span>Insulation Thickness:</span>
+          <span>${results.t_ins_in.toFixed(2)} inches</span>
+        </div>
+        <div class="summary-fact">
+          <span>Thermal Conductivity (k<sub>ins</sub>):</span>
+          <span>${results.k_ins > 0 ? results.k_ins.toFixed(4) : 'N/A'} BTU/hr·ft·°F</span>
+        </div>
+      `;
+      group.appendChild(insulationSummary);
 
-\\title{Thermal–Gas Line Encroachment Assessment Report}
-\\author{${escapeLatex(data.engineerName || 'N/A')}}
-\\date{${escapeLatex(data.date || 'N/A')}}
-\\maketitle
+      const walkthrough = document.createElement('div');
+      walkthrough.innerHTML = `
+        <h4 style="margin-top: 1.5rem;">Calculation Details:</h4>
+        <div class="result-item"><span class="result-label">Pipe Wall Resistance (R<sub>pipe</sub>)</span> <span class="result-value">${results.R_pipe_wall.toFixed(4)}</span></div>
+        <div class="result-item"><span class="result-label">Insulation Resistance (R<sub>ins</sub>)</span> <span class="result-value">${results.R_insulation.toFixed(4)}</span></div>
+        <div class="result-item"><span class="result-label">Bedding Resistance (R<sub>bed</sub>)</span> <span class="result-value">${results.R_bedding_hs.toFixed(4)}</span></div>
+        <div class="result-item"><span class="result-label">Soil Resistance (R<sub>soil</sub>)</span> <span class="result-value">${results.R_soil_hs.toFixed(4)}</span></div>
+        <div class="result-item" style="font-weight: bold;"><span class="result-label">Total Thermal Resistance (R<sub>total</sub>)</span> <span class="result-value">${results.R_total.toFixed(4)}</span></div>
+        <div class="result-item"><span class="result-label">Heat Loss per Foot (Q)</span> <span class="result-value">${results.Q.toFixed(2)} BTU/hr·ft</span></div>
+        <div class="result-item"><span class="result-label">True Centerline Separation (D)</span> <span class="result-value">${results.separation_distance.toFixed(2)} ft</span></div>
+        <div class="result-item"><span class="result-label">Orientation Formula Used</span> <span class="result-value">${results.orientation_formula_used}</span></div>
+      `;
+      group.appendChild(walkthrough);
 
-% --- Evaluation Information ---
-\\section*{Evaluation Information}
-${beginList}
-  ${formatItem('Date', formatValue(data.date))}
-  ${formatItem(`Evaluator Name${(data.evaluatorNames || []).length > 1 ? 's' : ''}`, formatValue(data.evaluatorNames.join(', ')))}
-  ${formatItem('Engineer’s Name', formatValue(data.engineerName))}
-  ${formatItem('Project Name', formatValue(data.projectName))}
-  ${formatItem('Project Location', formatValue(data.projectLocation))}
-  ${formatItem('Project Description', formatLongText(data.projectDescription))}
-${endList}
+      const finalTemps = document.createElement('div');
+      finalTemps.innerHTML = `
+        <h4 style="margin-top: 1.5rem;">Final Calculated Temperatures:</h4>
+        <div class="result-item"><span class="result-label">Ground Surface Temp (1" deep)</span> <span class="result-value">${results.T_ground_surface_above_hs.toFixed(1)} °F</span></div>
+        <div class="result-item"><span class="result-label">Gas Line Temp (Homogeneous Soil)</span> <span class="result-value">${results.T_gas_line.toFixed(1)} °F</span></div>
+        ${!isNaN(results.T_gas_line_layered) ? 
+            `<div class="result-item" style="background-color: #e6f3ff; font-weight: bold;"><span class="result-label">Gas Line Temp (with Bedding)</span> <span class="result-value" style="font-size: 1.5rem;">${results.T_gas_line_layered.toFixed(1)} °F</span></div>` :
+            `<div class="result-item" style="background-color: #e6f3ff; font-weight: bold;"><span class="result-label">Gas Line Temperature</span> <span class="result-value" style="font-size: 1.5rem;">${results.T_gas_line.toFixed(1)} °F</span></div>`
+        }
+      `;
+      group.appendChild(finalTemps);
+      
+      // Add Warning
+      let warningMessage = '';
+      const isPlastic = ['hdpe', 'mdpe', 'aldyl'].includes(data.gasPipeMaterialValue);
+      const isSteel = ['coated-steel-protected', 'coated-steel-unprotected', 'bare-steel'].includes(data.gasPipeMaterialValue);
+      const finalGasTemp = !isNaN(results.T_gas_line_layered) ? results.T_gas_line_layered : results.T_gas_line;
 
-% --- Heat Source Data ---
-\\section*{Heat Source Data}
-${beginList}`;
-    if (!data.isHeatSourceApplicable) {
-        latexString += `  ${formatItem('Heat Source Status', 'No applicable heat source type selected.')}`;
-    } else {
-        latexString += `
-  ${formatItem('Heat Source Type', formatValue(data.heatSourceType))}
-  ${formatItem('Operator Contact', formatValue(data.operatorName))}
-  ${formatItem('Operator Company', formatValue(data.operatorCompanyName))}
-  ${formatItem('Operator Address', formatValue(data.operatorCompanyAddress))}
-  ${formatItem('Operator Contact Info', formatValue(data.operatorContactInfo))}
-  ${formatItem('Registered with 811', formatValue(data.isRegistered811) + ` (${data.registered811Confirmation})`)}
-  ${formatItem('Data Confirmation Date', formatValue(data.confirmationDate))}
-  ${formatItem('Max Operating Temp', formatValue(data.maxTemp, '°F') + ` (${data.tempType})`)}
-  ${formatItem('Max Operating Pressure', formatValue(data.maxPressure, 'psig') + ` (${data.pressureType})`)}
-  ${formatItem('Line Age', formatValue(data.heatSourceAge, 'years') + ` (${data.ageType})`)}
-  ${formatItem('System Duty Cycle', formatLongText(data.systemDutyCycle) + ` (${data.systemDutyCycleType})`)}
-  ${formatItem('Pipe Casing Info', formatLongText(data.pipeCasingInfo) + ` (${data.pipeCasingInfoType})`)}
-  ${formatItem('Evidence of Surface Heat Loss', formatLongText(data.heatLossEvidence) + ` (Source: ${data.heatLossEvidenceSource})`)}
-  ${formatItem('Pipeline Nominal Diameter', formatValue(data.pipelineDiameter, 'inches') + ` (${data.diameterType})`)}
-  ${formatItem('Pipe Material', formatValue(data.heatSourcePipeMaterial) + ` (${data.materialType})`)}
-  ${formatItem('Pipe Wall Thickness', formatValue(data.heatSourceWallThickness, 'inches') + ` (${data.wallThicknessType})`)}
-  ${formatItem('Connection Types', formatLongText(data.connectionsValue.join(', ')) + ` (${data.connectionTypesType})`)}
-  ${formatItem('Pipe Insulation Type', formatValue(data.insulationType) + ` (${data.insulationTypeType})`)}
-  ${data.insulationType.startsWith('Other') ? `${formatItem('Custom Insulation K', formatValue(data.customInsulationThermalConductivity, 'BTU/hr·ft·°F'))}` : ''}
-  ${data.insulationType !== 'None' ? `${formatItem('Insulation Thickness', formatValue(data.insulationThickness, 'inches') + ` (${data.insulationThicknessType})`)}` : ''}
-  ${data.insulationType !== 'None' ? `${formatItem('Insulation Condition', formatLongText(data.insulationCondition) + ` (Source: ${data.insulationConditionSource})`)}` : ''}
-  ${formatItem('Depth to Centerline', formatValue(data.heatSourceDepth, 'feet') + ` (${data.depthType})`)}
-  ${formatItem('Additional Operator Info', formatLongText(data.additionalInfo))}`;
+
+      if (isPlastic && finalGasTemp >= 70) {
+        warningMessage = `<strong>WARNING:</strong> The calculated gas line temperature of <strong>${finalGasTemp.toFixed(1)}°F</strong> meets or exceeds the maximum allowable operational temperature of <strong>70°F</strong> for plastic pipe (e.g., HDPE, MDPE, Aldyl-A). A separate, detailed evaluation should be conducted to assess the impact on MAOP and long-term pipe integrity.`;
+      } else if (isSteel && finalGasTemp >= 150) {
+        warningMessage = `<strong>WARNING:</strong> The calculated gas line temperature of <strong>${finalGasTemp.toFixed(1)}°F</strong> meets or exceeds the maximum allowable temperature of <strong>150°F</strong> for steel pipe coatings. This can damage the adhesive, increasing corrosion risk. A separate, detailed evaluation of the coating and pipeline integrity should be conducted.`;
+      }
+
+      if (warningMessage) {
+        const warningDiv = document.createElement('div');
+        warningDiv.className = 'calculation-warning';
+        warningDiv.innerHTML = warningMessage;
+        group.appendChild(warningDiv);
+      }
+
+      return group;
+    };
+
+    resultsContainer.appendChild(createResultGroup("As-Is Scenario", asIsResults));
+    
+    if (worstCaseResults) {
+      const divider = document.createElement('hr');
+      divider.className = 'results-divider';
+      resultsContainer.appendChild(divider);
+      resultsContainer.appendChild(createResultGroup("Worst-Case Scenario (Insulation Failure)", worstCaseResults));
     }
-latexString += `
-${endList}
-
-% --- Gas Line Data ---
-\\section*{Gas Line Data}
-${beginList}
-  ${formatItem('Gas Line Operator Name', formatValue(data.gasOperatorName))}
-  ${formatItem('Distribution Operating Co.', formatValue(data.gasDoc))}
-  ${formatItem('Max Operating Pressure', formatValue(data.gasMaxPressure, 'psig'))}
-  ${formatItem('Installation Year', formatValue(data.gasInstallationYear))}
-  ${formatItem('Pipeline Nominal Diameter', formatValue(data.gasPipelineDiameter, 'inches'))}
-  ${formatItem('Pipe Sizing Standard', formatValue(data.gasPipeSizingStandard.toUpperCase()))}
-  ${formatItem('Gas Pipeline Material', formatValue(data.gasPipeMaterial))}
-  ${data.gasPipeMaterial.startsWith('Other') ? `${formatItem('Custom Material K', formatValue(data.customGasThermalConductivity, 'BTU/hr·ft·°F'))}` : ''}
-  ${data.gasPipeWallThickness !== 'N/A' ? `${formatItem('Gas Pipe Wall Thickness', formatValue(data.gasPipeWallThickness, 'inches'))}` : ''}
-  ${data.gasPipeSDR !== 'N/A' ? `${formatItem('Gas Pipe SDR', formatValue(data.gasPipeSDR))}` : ''}`;
-  if (['hdpe', 'mdpe', 'aldyl'].includes(data.gasPipeMaterialValue)) {
-    latexString += `
-  ${formatItem('Material Continuous Temp Limit', formatValue(data.gasPipeContinuousLimit, '°F'))}
-  ${formatItem('Common Utility Cap Temp', formatValue(data.gasPipeUtilityCap, '°F'))}
-  ${formatItem('Operational Temp Limit', `\\textbf{${formatValue('70', '°F')} (Max for all plastic pipes)}`)}
-  ${formatItem('Material Notes', formatLongText(data.gasPipeNotes))}`;
-  }
-latexString += `
-  ${data.gasCoatingType !== 'N/A' ? `${formatItem('Coating Type', formatValue(data.gasCoatingType))}` : ''}
-  ${(data.gasCoatingMaxTemp !== 'N/A' && data.gasCoatingMaxTemp !== 'Custom') ? `${formatItem('Coating Max Allowable Temp', formatValue(data.gasCoatingMaxTemp, '°F'))}` : ''}
-  ${formatItem('Orientation to Heat Source', formatValue(data.gasLineOrientation))}
-  ${formatItem('Depth to Centerline', formatValue(data.depthOfBurialGasLine, 'feet'))}
-  ${data.parallelDistance !== 'N/A' ? `${formatItem('Distance Between Lines', formatValue(data.parallelDistance, 'feet'))}` : ''}
-  ${data.parallelLength !== 'N/A' ? `${formatItem('Length of Parallel Section', formatValue(data.parallelLength, 'feet'))}` : ''}
-  ${data.latitude !== 'N/A' ? `${formatItem('Intersection Latitude', formatValue(data.latitude))}` : ''}
-  ${data.longitude !== 'N/A' ? `${formatItem('Intersection Longitude', formatValue(data.longitude))}` : ''}
-${endList}
-
-% --- Soil Data ---
-\\section*{Soil \\& Bedding Data}
-${beginList}
-  ${formatItem('Native Soil Type', formatValue(data.soilType))}
-  ${formatItem('Native Soil Thermal Conductivity', formatValue(data.soilThermalConductivity, 'BTU/hr·ft·°F'))}
-  ${formatItem('Soil Moisture Content', formatValue(data.soilMoistureContent, '%'))}
-  ${formatItem('Average Ground Surface Temp', formatValue(data.groundSurfaceTemperature, '°F'))}
-  ${formatItem('Evidence of Water Infiltration', formatValue(data.waterInfiltration))}
-  ${formatItem('Infiltration Comments', formatLongText(data.waterInfiltrationComments))}
-  ${formatItem('Heat Source Bedding Type', formatValue(data.heatSourceBeddingType))}
-  ${data.heatSourceBeddingType === 'sand' ? `${formatItem('HS Bedding Dims (T/B/L/R)', `${formatValue(data.heatSourceBeddingTop, '"')} / ${formatValue(data.heatSourceBeddingBottom, '"')} / ${formatValue(data.heatSourceBeddingLeft, '"')} / ${formatValue(data.heatSourceBeddingRight, '"')}`)}` : ''}
-  ${data.heatSourceBeddingType === 'sand' ? `${formatItem('HS Bedding K', data.heatSourceBeddingUseCustomK === 'yes' ? `${formatValue(data.heatSourceBeddingCustomK, 'BTU/hr·ft·°F')} (Custom)` : '0.20 BTU/hr·ft·°F (Default)')}` : ''}
-  ${formatItem('Gas Line Bedding Type', formatValue(data.gasLineBeddingType))}
-  ${data.gasLineBeddingType === 'sand' ? `${formatItem('Gas Bedding Dims (T/B/L/R)', `${formatValue(data.gasBeddingTop, '"')} / ${formatValue(data.gasBeddingBottom, '"')} / ${formatValue(data.gasBeddingLeft, '"')} / ${formatValue(data.gasBeddingRight, '"')}`)}` : ''}
-  ${data.gasLineBeddingType === 'sand' ? `${formatItem('Gas Bedding K', data.gasBeddingUseCustomK === 'yes' ? `${formatValue(data.gasBeddingCustomK, 'BTU/hr·ft·°F')} (Custom)` : '0.20 BTU/hr·ft·°F (Default)')}` : ''}
-${endList}
-
-% --- Field Visit ---
-\\section*{Field Visit}
-${beginList}
-    ${formatItem('Date of Visit', formatValue(data.visitDate))}
-    ${formatItem('Personnel on Site', formatLongText(data.sitePersonnel))}
-    ${formatItem('Weather and Site Conditions', formatLongText(data.siteConditions))}
-    ${formatItem('Field Observations', formatLongText(data.fieldObservations))}
-${endList}
-
-% --- Calculation Results ---
-\\section*{Calculation Results}
-${beginList}
-  ${formatItem('Calculated Temp at Gas Line Surface', `\\textbf{${formatValue(results['Calculated Temperature at Gas Line Surface (°F)'], '°F')}}`)}
-  ${formatItem('Temperature Rise Above Ground', formatValue(results['Temperature Rise Above Ground (°F)'], '°F'))}
-  ${formatItem('Heat Flux at Gas Pipe Surface', formatValue(results['Heat Flux at Gas Pipe Surface (BTU/hr·ft²)'], 'BTU/hr$\\cdot$ft$^2$'))}
-  ${formatItem('Heat Loss per Unit Length (Q)', formatValue(results['Heat Loss per Unit Length (Q, BTU/hr·ft)'], 'BTU/hr·ft'))}
-  ${formatItem('Total Thermal Resistance (R\\_total)', formatValue(results['Total Thermal Resistance (R_total, hr·ft·°F/BTU)'], 'hr·ft·°F/BTU'))}
-  ${formatItem('Pipe Wall Thermal Resistance (R\\_pipe\\_wall)', formatValue(results['Pipe Wall Thermal Resistance (hr·ft·°F/BTU)'], 'hr·ft·°F/BTU'))}
-  ${formatItem('Insulation Thermal Resistance (R\\_insulation)', formatValue(results['Insulation Thermal Resistance (hr·ft·°F/BTU)'], 'hr·ft·°F/BTU'))}
-  ${formatItem('Soil Thermal Resistance (R\\_soil\\_hs)', formatValue(results['Soil Thermal Resistance (hr·ft·°F/BTU)'], 'hr·ft·°F/BTU'))}
-${endList}
-
-% --- Recommendations ---
-\\section*{Recommendations}
-\\begin{enumerate}
-  ${data.recommendations.filter(rec => rec.trim() !== '').map(rec => `\\item ${escapeLatex(rec)}`).join('\n  ')}
-\\end{enumerate}
-
-\\end{document}
-`;
+    
+    resultsContainer.classList.remove('hidden');
+    document.getElementById('calculateButton')?.scrollIntoView({ behavior: 'smooth' });
+  };
   
-    latexOutputEl.textContent = latexString;
-    latexContainer.classList.remove('hidden');
+  document.getElementById('calculateButton')?.addEventListener('click', handleCalculate);
+
+  // --- LaTeX Report Generation ---
+  const copyLatexButton = document.getElementById('copyLatexButton');
+  const latexContainer = document.getElementById('latexContainer');
+  const latexOutput = document.getElementById('latexReportOutput');
+  const latexPlaceholder = document.getElementById('latexPlaceholder');
+
+  const showLatexReport = () => {
+    if (!lastCalculationResults || !latexContainer || !latexOutput || !latexPlaceholder) return;
+    const data = getFormData();
+    const latexCode = generateLatexReport(data, lastCalculationResults.asIs, lastCalculationResults.worstCase);
+    latexOutput.textContent = latexCode;
     latexPlaceholder.classList.add('hidden');
+    latexContainer.classList.remove('hidden');
   };
 
-  const copyLatexButton = document.getElementById('copyLatexButton');
   copyLatexButton?.addEventListener('click', () => {
-    const latexCode = document.getElementById('latexReportOutput')?.textContent;
-    if (latexCode) {
-      navigator.clipboard.writeText(latexCode).then(() => {
-        const originalText = copyLatexButton.textContent;
-        copyLatexButton.textContent = 'Copied!';
-        setTimeout(() => {
-          copyLatexButton.textContent = originalText;
-        }, 2000);
-      }).catch(err => {
-        console.error('Failed to copy text: ', err);
-        alert('Failed to copy LaTeX code to clipboard.');
-      });
+    if (lastCalculationResults) {
+      showLatexReport();
+      if(latexOutput?.textContent) {
+        navigator.clipboard.writeText(latexOutput.textContent).then(() => {
+          copyLatexButton.textContent = 'Copied!';
+          setTimeout(() => { copyLatexButton.textContent = 'Copy Report'; }, 2000);
+        }).catch(err => {
+          console.error('Failed to copy LaTeX: ', err);
+        });
+      }
+    } else {
+      alert('Please run a calculation first on the "Calculation" tab.');
     }
   });
 
+  // --- Save/Load Assessment Logic ---
+  const saveAssessment = () => {
+    const data = {
+      formData: getFormData(),
+      photos: getPhotosData(),
+      recommendations: Array.from(document.querySelectorAll<HTMLTextAreaElement>('#recommendationsContainer .recommendation-textarea')).map(textarea => textarea.value),
+      questionnaire: {
+        currentQuestionIndex,
+        answers: questionAnswers,
+      },
+      lastCalculationResults,
+      lastReport: document.getElementById('generated-report-container')?.innerHTML || '',
+      isAuthenticated: isAdminAuthenticated,
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `thermal-assessment-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  
+  const loadAssessment = (e: Event) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        const { formData, photos, recommendations, questionnaire, lastCalculationResults: loadedCalcResults, lastReport, isAuthenticated } = data;
+        
+        // Reset form to default state
+        (document.querySelector('.project-info-form') as HTMLFormElement).reset();
+
+        // Helper to set radio button value. It handles cases where the value is saved, and cases where the label is saved.
+        const setRadioValue = (groupName: string, value: any, isLabel = false) => {
+          if (value === null || typeof value === 'undefined') return;
+          const radios = document.querySelectorAll<HTMLInputElement>(`input[name="${groupName}"]`);
+          for (const radio of radios) {
+            let match = false;
+            if (isLabel) {
+              const label = document.querySelector<HTMLLabelElement>(`label[for="${radio.id}"]`);
+              if (label && label.textContent?.trim() === value) {
+                match = true;
+              }
+            } else {
+              if (radio.value === value) {
+                match = true;
+              }
+            }
+            if (match) {
+              radio.checked = true;
+              // Dispatch change event to trigger dependent UI updates
+              radio.dispatchEvent(new Event('change', { bubbles: true }));
+              return;
+            }
+          }
+        };
+        
+        // --- FIX: Handle heatSourceType before the main loop to ensure dependent controls are populated. ---
+        if (formData.heatSourceType) {
+            const value = formData.heatSourceType;
+            const radios = document.querySelectorAll<HTMLInputElement>('input[name="heatSourceType"]');
+            let found = false;
+            for (const radio of radios) {
+                const label = document.querySelector<HTMLLabelElement>(`label[for="${radio.id}"]`);
+                if (label && label.textContent?.trim() === value) {
+                    radio.checked = true;
+                    found = true;
+                    radio.dispatchEvent(new Event('change', { bubbles: true }));
+                    break;
+                }
+            }
+            if (!found && String(value).startsWith('Other:')) {
+                const otherRadio = document.querySelector<HTMLInputElement>('input[name="heatSourceType"][value="other"]');
+                if (otherRadio) {
+                    otherRadio.checked = true;
+                    (getEl('customHeatSourceType') as HTMLInputElement).value = String(value).replace('Other: ', '').replace('not specified', '').trim();
+                    otherRadio.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+        }
+        // --- END FIX ---
+
+        // --- FIX: Robustly load Heat Source Insulation Type from multiple legacy and current keys ---
+        const insulationSelect = getEl('pipeInsulationType') as HTMLSelectElement;
+        if (insulationSelect) {
+            const normalizeAndMapInsulation = (inputValue: unknown): string => {
+                if (!inputValue) return '';
+                // Normalize by trimming, lowercasing, and replacing spaces or underscores with hyphens
+                const value = String(inputValue).trim().toLowerCase().replace(/_/g, '-').replace(/ /g, '-');
+        
+                // Direct match for stable codes
+                if (['calcium-silicate', 'mineral-wool', 'fiberglass', 'cellular-glass', 'none', 'other'].includes(value)) {
+                    return value;
+                }
+        
+                // Legacy label mapping
+                if (value.includes('calcium-silicate')) return 'calcium-silicate';
+                if (value.includes('mineral-wool') || value.includes('mineralwool')) return 'mineral-wool';
+                if (value.includes('fiberglass')) return 'fiberglass';
+                if (value.includes('cellular-glass') || value.includes('foam-glass')) return 'cellular-glass';
+                if (value === 'none') return 'none';
+                if (value.startsWith('other')) return 'other';
+        
+                return ''; // Return empty string if no match
+            };
+        
+            // Prioritize the canonical key, but fall back to the legacy key
+            const valueToParse = formData.heatSourcePipeInsulationType || formData.insulationType;
+            const mappedValue = normalizeAndMapInsulation(valueToParse);
+        
+            // Check if the derived value is a valid option in the (dynamically populated) select
+            const optionExists = Array.from(insulationSelect.options).some(o => o.value === mappedValue);
+            insulationSelect.value = optionExists ? mappedValue : '';
+        
+            // If 'other' is selected, populate the custom text field from the legacy key
+            if (insulationSelect.value === 'other' && typeof formData.insulationType === 'string' && formData.insulationType.startsWith('Other:')) {
+                const customInput = getEl('customPipeInsulation') as HTMLInputElement;
+                if (customInput) {
+                    customInput.value = formData.insulationType.replace('Other: ', '').replace('not specified', '').trim();
+                }
+            }
+        
+            // Restore the adjacent radio group for "Unknown/Actual/Assumed"
+            if (formData.insulationTypeType) {
+                setRadioValue('insulationTypeType', formData.insulationTypeType, true);
+            }
+        
+            // Trigger change to update UI dependencies (e.g., show/hide custom fields)
+            insulationSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        // --- END FIX ---
+
+        // Load form data using a more robust approach
+        for (const key in formData) {
+          if (!Object.prototype.hasOwnProperty.call(formData, key)) continue;
+          const value = formData[key as keyof typeof formData];
+          
+          // --- Special Handlers for complex fields ---
+
+          // Radio buttons saved by LABEL text
+          if (key === 'heatSourceType') {
+            // This is now handled before the loop, so we skip it here.
+            continue;
+          }
+          if (['isRegistered811', 'registered811Confirmation', 'tempType', 'pressureType', 'ageType', 'diameterType', 'materialType', 'wallThicknessType', 'connectionTypesType', 'insulationThicknessType', 'depthType', 'gasLineOrientation', 'waterInfiltration'].includes(key)) {
+            setRadioValue(key, value, true);
+            continue;
+          }
+          if (key === 'systemDutyCycleType') { setRadioValue('dutyCycleType', value, true); continue; }
+          if (key === 'pipeCasingInfoType') { setRadioValue('casingInfoType', value, true); continue; }
+          
+          // Radio buttons saved by VALUE
+          if (['gasPipeSizingStandard', 'heatSourceBeddingType', 'heatSourceBeddingUseCustomK', 'gasLineBeddingType', 'gasBeddingUseCustomK'].includes(key)) {
+            setRadioValue(key, value, false);
+            continue;
+          }
+
+          // Dependent Selects
+          if (key === 'heatSourceWallThickness') {
+            const select = getEl('wallThickness') as HTMLSelectElement;
+            (getEl('pipelineDiameter') as HTMLSelectElement).value = formData.pipelineDiameter;
+            getEl('pipelineDiameter')?.dispatchEvent(new Event('change'));
+            if (select) {
+              const option = Array.from(select.options).find(o => o.value === String(value));
+              if (option) {
+                select.value = value as string;
+              } else if (value && value !== 'N/A') {
+                select.value = 'custom';
+                (getEl('customWallThickness') as HTMLInputElement).value = value as string;
+              }
+              select.dispatchEvent(new Event('change'));
+            }
+            continue;
+          }
+           if (key === 'gasPipeWallThickness') {
+            const select = getEl('gasWallThickness') as HTMLSelectElement;
+            (getEl('gasPipelineDiameter') as HTMLSelectElement).value = formData.gasPipelineDiameter;
+            getEl('gasPipelineDiameter')?.dispatchEvent(new Event('change'));
+            if (select) {
+                const option = Array.from(select.options).find(o => o.value === String(value));
+                if (option) {
+                    select.value = value as string;
+                } else if (value && value !== 'N/A') {
+                    select.value = 'custom';
+                    (getEl('customGasWallThickness') as HTMLInputElement).value = value as string;
+                }
+                select.dispatchEvent(new Event('change'));
+            }
+            continue;
+          }
+
+          // Selects where text is saved
+          if (key === 'heatSourcePipeMaterial') {
+            const select = getEl('pipeMaterial') as HTMLSelectElement;
+            if (String(value).startsWith('Other:')) {
+              select.value = 'other';
+              (getEl('customPipeMaterial') as HTMLInputElement).value = String(value).replace('Other: ', '').trim();
+            } else {
+              const option = Array.from(select.options).find(o => o.text.replace(/ \(.*\)/, '') === value);
+              if (option) select.value = option.value;
+            }
+            select.dispatchEvent(new Event('change'));
+            continue;
+          }
+
+          // Skip insulation keys as they are now handled by a dedicated block
+          if (['heatSourcePipeInsulationType', 'pipeInsulationTypeValue', 'insulationType', 'insulationTypeType'].includes(key)) {
+            continue;
+          }
+
+          // Selects where value is saved
+          if (key === 'gasPipeMaterialValue') {
+            const select = getEl('gasPipeMaterial') as HTMLSelectElement;
+            if (select && value) {
+              select.value = value as string;
+              if (value === 'other' && typeof formData.gasPipeMaterial === 'string' && formData.gasPipeMaterial.startsWith('Other:')) {
+                (getEl('customGasPipeMaterial') as HTMLInputElement).value = formData.gasPipeMaterial.replace('Other: ', '').trim();
+              }
+              select.dispatchEvent(new Event('change'));
+            }
+            continue;
+          }
+
+          // Other complex fields
+          if (key === 'evaluatorNames' && Array.isArray(value)) {
+            const select = getEl('numEvaluators') as HTMLSelectElement;
+            select.value = String(value.length);
+            updateEvaluatorInputs();
+            const inputs = document.querySelectorAll<HTMLInputElement>('.evaluator-name-input');
+            value.forEach((name, index) => {
+              if (inputs[index]) inputs[index].value = name;
+            });
+            continue;
+          }
+          if (key === 'connectionsValue' && Array.isArray(value)) {
+            const select = getEl('connectionTypes') as HTMLSelectElement;
+            Array.from(select.options).forEach(opt => {
+              const isOther = opt.value === 'other' && value.some(v => typeof v === 'string' && v.startsWith('Other:'));
+              opt.selected = value.includes(opt.text) || isOther;
+            });
+            const otherValue = value.find(v => typeof v === 'string' && v.startsWith('Other:'));
+            if (otherValue) {
+              (getEl('customConnectionTypes') as HTMLTextAreaElement).value = (otherValue as string).replace('Other: ', '').replace('not specified', '').trim();
+            }
+            handleConnectionTypesChange(); // This function updates the UI
+            continue;
+          }
+          if (key === 'parallelCoordinates' && Array.isArray(value)) {
+              value.forEach((coord, index) => {
+                  const latInput = document.getElementById(`lat-parallel-${index}`) as HTMLInputElement;
+                  const lngInput = document.getElementById(`lng-parallel-${index}`) as HTMLInputElement;
+                  if (latInput) latInput.value = coord.lat;
+                  if (lngInput) lngInput.value = coord.lng;
+              });
+              continue;
+          }
+          
+          // --- Fallback for simple fields ---
+          const el = getEl(key);
+          if (el && 'value' in el) {
+            (el as HTMLInputElement).value = value as string;
+          }
+        }
+
+        // Final dispatch of events to ensure UI consistency
+        document.querySelectorAll('input, select, textarea').forEach(el => {
+          if ((el as HTMLElement).id) {
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        });
+
+
+        // Load photos
+        const photoContainer = getEl('image-preview-container');
+        if (photoContainer) photoContainer.innerHTML = '';
+        if (photos && Array.isArray(photos)) {
+            photos.forEach(photo => addPhotoPreview(photo.src, photo.description));
+        }
+
+        // Load recommendations
+        const recContainer = getEl('recommendationsContainer');
+        if (recContainer) recContainer.innerHTML = '';
+        if (recommendations && Array.isArray(recommendations)) {
+            recommendations.forEach(rec => addRecommendation(rec));
+        }
+        
+        // Load questionnaire state
+        if(questionnaire) {
+          currentQuestionIndex = questionnaire.currentQuestionIndex ?? -1;
+          questionAnswers = questionnaire.answers ?? [];
+        }
+        
+        // Load calculation results to preserve report generation state
+        lastCalculationResults = loadedCalcResults || null;
+        
+        // Load Admin state
+        if (isAuthenticated) {
+          (getEl('adminPasscode') as HTMLInputElement).value = '0665'; // Dummy value to pass login
+          handleAdminExecute();
+        } else {
+          handleAdminLogout();
+        }
+        
+        // Load generated report
+        const reportContainer = getEl('generated-report-container');
+        if (reportContainer && lastReport) {
+          reportContainer.innerHTML = lastReport;
+          if (lastReport.trim() !== '') {
+            reportContainer.classList.remove('hidden');
+            handleFinalReportTabClick(); // This will add the 'Generate New' button
+          }
+        }
+
+        alert('Assessment loaded successfully.');
+
+      } catch (err) {
+        console.error("Failed to load assessment file:", err);
+        alert("Error: Could not read the assessment file. It may be corrupted or in an incorrect format.");
+      }
+    };
+    reader.readAsText(file);
+  };
+  
+  document.getElementById('saveButton')?.addEventListener('click', saveAssessment);
+  document.getElementById('loadButton')?.addEventListener('click', () => document.getElementById('loadFile')?.click());
+  document.getElementById('loadFile')?.addEventListener('change', loadAssessment);
+
+
+  // Initial setup calls
+  updateEvaluatorInputs();
+  toggleConditionalFields();
+  handleGasLineOrientationChange();
+  handleGasOperatorNameChange();
+  handleGasPipeMaterialChange();
+  handleGasCoatingTypeChange();
+  handleGasSdrChange();
+  handleConnectionTypesChange();
+  handleHeatLossSourceChange();
+  handleInsulationConditionSourceChange();
+  setupRewordButtons();
+  setupQuestionnaireReword();
+  setupImageUploader();
+  document.getElementById('addRecommendationButton')?.addEventListener('click', () => addRecommendation());
+
+  // Set up final report questionnaire buttons
+  document.getElementById('next-question-btn')?.addEventListener('click', handleNextQuestion);
+  document.getElementById('prev-question-btn')?.addEventListener('click', handlePrevQuestion);
+
+  // Set initial active tab
+  document.querySelector('.tab-button[data-tab="about"]')?.dispatchEvent(new Event('click'));
 });

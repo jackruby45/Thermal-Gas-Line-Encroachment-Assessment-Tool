@@ -28,7 +28,7 @@ html, body {
 }
 
 body.resizing * {
-  cursor: se-resize !important;
+  cursor: ns-resize !important;
 }
 
 #root {
@@ -681,6 +681,12 @@ select:-webkit-autofill:focus {
   color: var(--focus-color);
 }
 
+.results-divider {
+  border: none;
+  border-top: 2px dashed var(--border-color);
+  margin: 0.5rem 0;
+}
+
 .insulation-summary {
   margin-top: 1rem;
   padding-top: 1rem;
@@ -700,19 +706,67 @@ select:-webkit-autofill:focus {
 
 /* --- Field Visit Image Preview --- */
 #image-preview-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
   margin-top: 1rem;
 }
 
+.photo-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border: 1px solid var(--border-color);
+  padding: 0.75rem;
+  border-radius: 4px;
+  background-color: #f8fafc;
+}
+
+.photo-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.photo-item-header span {
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--header-text-color);
+}
+
+.delete-photo-btn {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--subtitle-text-color);
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  line-height: 1;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.delete-photo-btn:hover {
+  background-color: var(--error-bg-color);
+  color: var(--error-text-color);
+  border-color: var(--error-border-color);
+  transform: scale(1.1);
+}
+
 .resizable-image-wrapper {
   position: relative;
-  width: 200px;
-  height: 200px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 10;
   border: 1px solid var(--border-color);
   overflow: hidden;
-  resize: both;
+  resize: vertical;
+  min-height: 150px;
 }
 
 .resizable-image-wrapper img {
@@ -731,7 +785,7 @@ select:-webkit-autofill:focus {
   background-color: rgba(255, 255, 255, 0.7);
   border-top: 2px solid var(--border-color);
   border-left: 2px solid var(--border-color);
-  cursor: se-resize;
+  cursor: ns-resize;
   z-index: 10;
 }
 
@@ -795,6 +849,109 @@ select:-webkit-autofill:focus {
   margin-bottom: 1rem;
 }
 
+#assessment-form-content {
+    background-color: #fff;
+    color: #000;
+    font-family: 'Times New Roman', Times, serif;
+}
+
+.form-section-printable {
+    margin-bottom: 2rem;
+    break-inside: avoid;
+}
+
+.form-header-printable {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #000;
+    border-bottom: 2px solid #000;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+    font-family: var(--font-family); /* Keep header modern */
+}
+
+.form-field-printable {
+    margin-bottom: 1.5rem;
+}
+
+.form-field-printable label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+    color: #000;
+}
+
+.input-line {
+    border-bottom: 1px solid #999;
+    height: 1.5rem;
+    margin-top: 0.5rem;
+}
+
+.input-box {
+    border: 1px solid #999;
+    padding: 0.5rem;
+}
+
+.choices-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-top: 0.5rem;
+}
+
+.choice-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+}
+
+.checkbox {
+    width: 1.1rem;
+    height: 1.1rem;
+    border: 1px solid #000;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.field-notes {
+    font-style: italic;
+    font-size: 0.9rem;
+    color: #555;
+    margin-top: 0.25rem;
+}
+
+.photo-log-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.photo-log-entry {
+    border: 1px solid #999;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.photo-box {
+    border: 1px dashed #999;
+    height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    font-style: italic;
+}
+
+.photo-desc-area label {
+    font-weight: normal;
+    font-size: 1rem;
+}
+
 /* --- Admin Panel --- */
 .text-error {
   color: var(--error-text-color);
@@ -802,6 +959,23 @@ select:-webkit-autofill:focus {
 }
 
 /* --- Final Report Questionnaire --- */
+#report-actions-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.report-generation-options {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 #questionnaire-progress {
   margin-bottom: 1rem;
 }
@@ -992,7 +1166,7 @@ select:-webkit-autofill:focus {
     padding: 0;
     margin: 0;
   }
-  .app-header, .tab-nav, .form-actions, .form-actions-print, .form-actions-latex, .form-actions-calculate, .reword-button, .delete-recommendation-btn, #admin, #recommendations, #final-report, #latex, #calculation, #about, #instructions, #heat-trans-theory, .tab-button[data-tab="assessment-form"] {
+  .app-header, .tab-nav, .form-actions, .form-actions-print, .form-actions-latex, .form-actions-calculate, .reword-button, .delete-recommendation-btn, #admin, #recommendations, #final-report, #latex, #calculation, #about, #instructions, #heat-trans-theory, .tab-button[data-tab="assessment-form"], .delete-photo-btn {
     display: none !important;
   }
   .tab-panel.active, .project-info-form, main {
@@ -1006,6 +1180,12 @@ select:-webkit-autofill:focus {
   body.printing-assessment-form #assessment-form {
       display: block !important; /* Only show the assessment form */
   }
+
+  body.printing-assessment-form #assessment-form-content {
+    border: none;
+    padding: 0;
+    color: #000;
+  }
   
   /* Styles for the final report print view */
   body:not(.printing-assessment-form) .tab-button[data-tab="final-report"],
@@ -1013,9 +1193,8 @@ select:-webkit-autofill:focus {
   body:not(.printing-assessment-form) #generated-report-container {
     display: block !important;
   }
-  body:not(.printing-assessment-form) #report-actions,
-  body:not(.printing-assessment-form) #report-questionnaire,
-  body:not(.printing-assessment-form) #report-generation-prompt,
+  body:not(.printing-assessment-form) #report-actions-wrapper,
+  body:not(.printing-assessment-form) #final-report-questionnaire-wrapper,
   body:not(.printing-assessment-form) #report-admin-only-message {
     display: none !important;
   }
@@ -1024,12 +1203,15 @@ select:-webkit-autofill:focus {
     grid-template-columns: 200px 1fr;
     break-inside: avoid;
   }
-  .summary-section {
+  .summary-section, .photo-item {
     break-inside: avoid-page;
   }
   #generated-report-container {
     border: none;
     padding: 0;
+  }
+  .photo-log-grid {
+    grid-template-columns: 1fr; /* Stack photo logs when printing */
   }
 }
 
@@ -1057,5 +1239,8 @@ select:-webkit-autofill:focus {
   }
   .parallel-coordinate-grid {
     grid-template-columns: 60px 1fr 1fr;
+  }
+  .photo-log-grid {
+    grid-template-columns: 1fr;
   }
 }
