@@ -958,6 +958,42 @@ select:-webkit-autofill:focus {
   margin-top: 0.5rem;
 }
 
+#admin-content-wrapper h3 {
+  margin-top: 0;
+  color: var(--header-text-color);
+}
+
+.api-key-status {
+  margin-top: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.api-key-status.not-set {
+  background-color: var(--warning-bg-color);
+  color: var(--warning-text-color);
+}
+
+.api-key-status.set {
+  background-color: #e6f3ff;
+  color: #31708f;
+}
+
+.api-key-status code {
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: bold;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+
 /* --- Final Report Questionnaire --- */
 #report-actions-wrapper {
   display: flex;

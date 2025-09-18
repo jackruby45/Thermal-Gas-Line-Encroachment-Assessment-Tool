@@ -1084,16 +1084,28 @@
 
           <div id="admin" class="tab-panel">
             <div id="admin-login-wrapper">
+              <h2 class="form-section-header">Admin Login</h2>
               <div class="form-group">
                 <label for="adminPasscode">Admin Passcode:</label>
                 <input type="password" id="adminPasscode" name="adminPasscode" placeholder="Enter passcode">
               </div>
               <div id="adminLoginError" class="text-error hidden"></div>
-              <button type="button" id="adminExecuteButton" class="action-button">Execute</button>
+              <button type="button" id="adminExecuteButton" class="action-button">Login</button>
             </div>
             <div id="admin-content-wrapper" class="hidden">
-              <p>You are logged in as an administrator. You now have access to advanced features like AI-powered text rewording and final report generation.</p>
-              <button type="button" id="adminLogoutButton" class="action-button secondary">Logout</button>
+              <h2 class="form-section-header">Administrator Controls</h2>
+              <div class="form-group">
+                <label for="apiKeyInput">Gemini API Key:</label>
+                <div class="form-group-info">
+                  The API key is required to enable AI features (Reword, Final Report). The key is stored only in your browser's session and will be cleared when you close this tab.
+                </div>
+                <input type="password" id="apiKeyInput" name="apiKeyInput" placeholder="Enter your Gemini API key">
+                <div id="apiKeyStatus" class="api-key-status not-set">API Key is not set.</div>
+              </div>
+              <div class="admin-actions">
+                <button type="button" id="saveApiKeyButton" class="action-button">Save Key for Session</button>
+                <button type="button" id="adminLogoutButton" class="action-button secondary">Logout</button>
+              </div>
             </div>
           </div>
 

@@ -4,8 +4,8 @@
 */
 import { GoogleGenAI, Type } from "@google/genai";
 
-// Initialize the Gemini AI client. Assumes API_KEY is set in the environment.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+// Declare the Gemini AI client instance. It will be initialized upon admin login.
+let ai: GoogleGenAI | null = null;
 
 // Fix: Moved helper functions to a higher scope to resolve 'Cannot find name' errors.
 const getEl = (id: string) => document.getElementById(id);
@@ -739,6 +739,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadingEl = document.getElementById('report-loading');
 
     if (!container || !contentWrapper || !loadingEl) return;
+    
+    if (!ai) {
+        container.innerHTML = `<p class="error-message">AI client is not initialized. Please set a valid API key in the Admin tab to generate reports.</p>`;
+        container.classList.remove('hidden');
+        loadingEl.classList.add('hidden');
+        contentWrapper.classList.remove('hidden'); // Show content wrapper again
+        return;
+    }
     
     contentWrapper.classList.add('hidden');
     loadingEl.classList.remove('hidden');
@@ -2184,6 +2192,60 @@ Important Constraint: Your sole function is to provide analysis and recommendati
   const adminLoginError = document.getElementById('adminLoginError');
   const adminLoginWrapper = document.getElementById('admin-login-wrapper');
   const adminContentWrapper = document.getElementById('admin-content-wrapper');
+  const apiKeyInput = document.getElementById('apiKeyInput') as HTMLInputElement;
+  const saveApiKeyButton = document.getElementById('saveApiKeyButton');
+  const apiKeyStatus = document.getElementById('apiKeyStatus');
+
+  const updateApiKeyStatus = () => {
+    if (!apiKeyStatus) return;
+    const key = sessionStorage.getItem('gemini-api-key');
+    if (ai && key) {
+        const maskedKey = `${key.substring(0, 4)}...${key.substring(key.length - 4)}`;
+        apiKeyStatus.innerHTML = `API Key is set for this session: <code>${maskedKey}</code>`;
+        apiKeyStatus.className = 'api-key-status set';
+    } else {
+        apiKeyStatus.textContent = 'API Key is not set. AI features are disabled.';
+        apiKeyStatus.className = 'api-key-status not-set';
+        ai = null; // Ensure AI is null if no key
+    }
+  };
+
+  const initializeAiClient = (apiKey: string): boolean => {
+    if (!apiKey) {
+        ai = null;
+        updateApiKeyStatus();
+        return false;
+    }
+    try {
+        ai = new GoogleGenAI({ apiKey });
+        return true;
+    } catch (error) {
+        console.error("Failed to initialize GoogleGenAI:", error);
+        alert(`Failed to initialize AI client. Check the console for details. Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        ai = null;
+        sessionStorage.removeItem('gemini-api-key');
+        updateApiKeyStatus();
+        return false;
+    }
+  };
+
+  const handleSaveApiKey = () => {
+    const apiKey = apiKeyInput.value.trim();
+    if (!apiKey) {
+      alert("Please enter a valid API key.");
+      return;
+    }
+    if (initializeAiClient(apiKey)) {
+        sessionStorage.setItem('gemini-api-key', apiKey);
+        alert("API Key saved successfully for this session.");
+        enableAdminFeatures();
+    } else {
+        sessionStorage.removeItem('gemini-api-key');
+        disableAdminFeatures();
+    }
+    apiKeyInput.value = ''; // Clear input for security
+    updateApiKeyStatus();
+  };
 
   const enableAdminFeatures = () => {
     document.querySelectorAll('.reword-button').forEach(btn => {
@@ -2196,1060 +2258,72 @@ Important Constraint: Your sole function is to provide analysis and recommendati
       document.querySelectorAll('.reword-button').forEach(btn => {
           btn.classList.add('hidden');
       });
-      // Instead of manipulating the DOM directly here, let the dedicated function handle it.
-      // The state `isAdminAuthenticated` is already false, so it will show the correct view.
+      ai = null;
       handleFinalReportTabClick();
   };
 
   const handleAdminExecute = () => {
-      if (adminLoginError) adminLoginError.classList.add('hidden');
+    if (adminPasscodeInput.value === '0665') {
+        isAdminAuthenticated = true;
+        adminLoginWrapper?.classList.add('hidden');
+        adminContentWrapper?.classList.remove('hidden');
+        if (adminLoginError) adminLoginError.classList.add('hidden');
+        adminPasscodeInput.value = '';
+        
+        // On login, check if a key is already in the session
+        const existingKey = sessionStorage.getItem('gemini-api-key');
+        if (existingKey) {
+            if (initializeAiClient(existingKey)) {
+                enableAdminFeatures();
+            } else {
+                disableAdminFeatures();
+            }
+        } else {
+          disableAdminFeatures();
+        }
+        updateApiKeyStatus();
 
-      if (adminPasscodeInput.value !== '0665') {
-          if (adminLoginError) {
-              adminLoginError.textContent = 'Incorrect passcode.';
-              adminLoginError.classList.remove('hidden');
-          }
-          return;
-      }
-      
-      isAdminAuthenticated = true;
-      adminLoginWrapper?.classList.add('hidden');
-      adminContentWrapper?.classList.remove('hidden');
-      enableAdminFeatures();
+    } else if (adminLoginError) {
+        adminLoginError.textContent = 'Incorrect passcode.';
+        adminLoginError.classList.remove('hidden');
+    }
+  };
+
+  const handleAdminLogout = () => {
+    isAdminAuthenticated = false;
+    ai = null;
+    sessionStorage.removeItem('gemini-api-key');
+    adminLoginWrapper?.classList.remove('hidden');
+    adminContentWrapper?.classList.add('hidden');
+    disableAdminFeatures();
+    updateApiKeyStatus();
   };
   
-  const handleAdminLogout = () => {
-      isAdminAuthenticated = false;
-      adminLoginWrapper?.classList.remove('hidden');
-      adminContentWrapper?.classList.add('hidden');
-      adminPasscodeInput.value = '';
-      disableAdminFeatures();
-  };
-
+  // Add event listeners for admin actions
   adminExecuteButton?.addEventListener('click', handleAdminExecute);
   adminLogoutButton?.addEventListener('click', handleAdminLogout);
-
-  const handleAdminKeyPress = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {
-          e.preventDefault(); // prevent form submission
-          adminExecuteButton?.click();
-      }
-  };
-
-  adminPasscodeInput?.addEventListener('keypress', handleAdminKeyPress);
-
-
-  // --- Reword with AI Logic ---
-  const rewordModal = document.getElementById('rewordModal');
-  const rewordOptionsContainer = document.getElementById('rewordOptionsContainer');
-  const confirmRewordButton = document.getElementById('confirmReword');
-  const cancelRewordButton = document.getElementById('cancelReword');
-
-  const showRewordModal = (versions: string[]) => {
-    if (!rewordModal || !rewordOptionsContainer) return;
-    rewordOptionsContainer.innerHTML = '';
-    versions.forEach((version, index) => {
-        const id = `reword-option-${index}`;
-        const optionDiv = document.createElement('div');
-        optionDiv.className = 'reword-option';
-        
-        const radio = document.createElement('input');
-        radio.type = 'radio';
-        radio.id = id;
-        radio.name = 'rewordSelection';
-        radio.value = version;
-        if (index === 0) radio.checked = true;
-
-        const label = document.createElement('label');
-        label.htmlFor = id;
-        label.textContent = version;
-
-        optionDiv.appendChild(radio);
-        optionDiv.appendChild(label);
-        rewordOptionsContainer.appendChild(optionDiv);
-    });
-    rewordModal.classList.remove('hidden');
-  };
-
-  const hideRewordModal = () => {
-    if(rewordModal) rewordModal.classList.add('hidden');
-    targetTextareaIdForReword = null;
-  };
-
-  const handleRewordClick = async (buttonId: string, textareaId: string, context: string) => {
-    const button = document.getElementById(buttonId) as HTMLButtonElement;
-    const textarea = document.getElementById(textareaId) as HTMLTextAreaElement;
-
-    if (!textarea.value.trim()) {
-      alert('Please enter some text to reword.');
-      return;
-    }
-
-    button.disabled = true;
-    button.textContent = '...';
-
-    try {
-      const systemInstruction = "You are an expert in buried steam, hot water, and superheated hot water systems, and also an expert in natural gas buried distribution and transmission systems. You understand the critical safety issues that can arise from excessive heat transfer from a heat source line to a nearby gas line. Your task is to rephrase the user's text to be more professional, clear, and technically accurate for an engineering assessment report. Provide exactly 3 distinct, reworded versions.";
-      const contents = `Please reword the following text about "${context}":\n\n"${textarea.value}"`;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents,
-        config: {
-          systemInstruction,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              versions: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-                description: "An array of three distinct reworded versions of the original text."
-              }
-            },
-            required: ["versions"]
-          }
-        }
-      });
-
-      const jsonString = (response.text || '').trim();
-      const result = JSON.parse(jsonString);
-
-      if (result.versions && Array.isArray(result.versions) && result.versions.length > 0) {
-        targetTextareaIdForReword = textareaId;
-        showRewordModal(result.versions);
-      } else {
-        throw new Error("Invalid response format from API.");
-      }
-    } catch (error) {
-      console.error("AI Reword Error:", error);
-      alert(`Failed to generate suggestions. Please check the browser console for details.\n${error instanceof Error ? error.message : ''}`);
-    } finally {
-      button.disabled = false;
-      button.textContent = 'Reword';
-    }
-  };
-
-  const setupRewordButtons = () => {
-    const rewordTargets = [
-      { btnId: 'rewordProjectDescription', txtId: 'projectDescription', context: 'the project description' },
-      { btnId: 'rewordSystemDutyCycle', txtId: 'systemDutyCycle', context: "the system's duty cycle or uptime" },
-      { btnId: 'rewordPipeCasingInfo', txtId: 'pipeCasingInfo', context: 'pipe casing or conduit information' },
-      { btnId: 'rewordHeatLossEvidence', txtId: 'heatLossEvidence', context: 'evidence of heat loss at the surface' },
-      { btnId: 'rewordInsulationCondition', txtId: 'insulationCondition', context: 'the known condition of the insulation' },
-      { btnId: 'rewordAdditionalInfo', txtId: 'additionalInfo', context: 'additional information provided by the operator' },
-    ];
-    rewordTargets.forEach(({ btnId, txtId, context }) => {
-      document.getElementById(btnId)?.addEventListener('click', () => handleRewordClick(btnId, txtId, context));
-    });
-  };
-
-  const setupQuestionnaireReword = () => {
-    const rewordAnswerBtn = document.getElementById('rewordAnswer');
-    rewordAnswerBtn?.addEventListener('click', () => {
-      const questionText = document.getElementById('question-text')?.textContent || '';
-      handleRewordClick('rewordAnswer', 'question-answer', `an answer to the question: "${questionText}"`);
-    });
-  };
-
-  confirmRewordButton?.addEventListener('click', () => {
-    if (targetTextareaIdForReword) {
-      const selectedRadio = document.querySelector<HTMLInputElement>('input[name="rewordSelection"]:checked');
-      if (selectedRadio) {
-        const textarea = document.getElementById(targetTextareaIdForReword) as HTMLTextAreaElement;
-        textarea.value = selectedRadio.value;
-        // Trigger input event to make sure auto-resize recalculates
-        textarea.dispatchEvent(new Event('input', { bubbles: true }));
-      }
-    }
-    hideRewordModal();
-  });
-
-  cancelRewordButton?.addEventListener('click', hideRewordModal);
-  rewordModal?.addEventListener('click', (e) => {
-    if (e.target === rewordModal) {
-      hideRewordModal();
-    }
-  });
-
-  // --- FIX: Add missing addPhotoPreview function ---
-  const addPhotoPreview = (source: File | string, description: string = '') => {
-    const container = document.getElementById('image-preview-container');
-    if (!container) return;
-
-    const item = document.createElement('div');
-    item.className = 'photo-item';
-
-    const img = document.createElement('img');
-    const textarea = document.createElement('textarea');
-    textarea.className = 'photo-description'; // Use a distinct class for photo descriptions
-    textarea.rows = 3;
-    textarea.placeholder = 'Enter a description for this photo...';
-    textarea.value = description;
-
-    if (source instanceof File) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const image = new Image();
-            image.onload = () => {
-                const canvas = document.createElement('canvas');
-                // Simple resize logic to cap width
-                const MAX_WIDTH = 800;
-                let width = image.width;
-                let height = image.height;
-
-                if (width > MAX_WIDTH) {
-                    height = (height * MAX_WIDTH) / width;
-                    width = MAX_WIDTH;
-                }
-
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx?.drawImage(image, 0, 0, width, height);
-                img.src = canvas.toDataURL(source.type);
-            };
-            if (e.target?.result) {
-                image.src = e.target.result as string;
-            }
-        };
-        reader.readAsDataURL(source);
-    } else { // source is a string (data URL from save file)
-        img.src = source;
-    }
-
-    const deleteBtn = document.createElement('button');
-    deleteBtn.type = 'button';
-    deleteBtn.className = 'delete-photo-btn';
-    deleteBtn.innerHTML = '&times;';
-    deleteBtn.setAttribute('aria-label', 'Delete photo');
-    deleteBtn.onclick = () => {
-        item.remove();
-    };
-
-    item.appendChild(img);
-    item.appendChild(textarea);
-    item.appendChild(deleteBtn);
-    container.appendChild(item);
-  };
-
-  // --- Image Uploader and Resizer ---
-  const setupImageUploader = () => {
-      const fileInput = document.getElementById('fieldPhotos') as HTMLInputElement;
-
-      if (!fileInput) return;
-
-      fileInput.addEventListener('change', () => {
-          const files = fileInput.files;
-          if (!files) return;
-
-          Array.from(files).forEach(file => {
-              if (file.type.startsWith('image/')) {
-                  addPhotoPreview(file);
-              }
-          });
-          
-          // Reset input to allow selecting the same file again after removing
-          fileInput.value = '';
-      });
-  };
-
-  // --- Dynamic Recommendations ---
-  const addRecommendation = (text: string = '') => {
-    const container = document.getElementById('recommendationsContainer');
-    if (!container) return;
-
-    const itemId = `recommendation-${recommendationCounter}`;
-    const rewordBtnId = `reword-recommendation-${recommendationCounter}`;
-    
-    const item = document.createElement('div');
-    item.className = 'recommendation-item';
-
-    const header = document.createElement('div');
-    header.className = 'recommendation-header';
-
-    const label = document.createElement('label');
-    label.htmlFor = itemId;
-    label.textContent = `Recommendation #${container.children.length + 1}`;
-
-    const deleteBtn = document.createElement('button');
-    deleteBtn.type = 'button';
-    deleteBtn.className = 'delete-recommendation-btn';
-    deleteBtn.innerHTML = '&times;';
-    deleteBtn.setAttribute('aria-label', `Delete recommendation #${container.children.length + 1}`);
-    deleteBtn.onclick = () => {
-        item.remove();
-        // Re-number remaining recommendations
-        const remainingItems = document.querySelectorAll('.recommendation-item');
-        remainingItems.forEach((remItem, index) => {
-            const remLabel = remItem.querySelector('label');
-            const remDeleteBtn = remItem.querySelector('.delete-recommendation-btn');
-            if (remLabel) remLabel.textContent = `Recommendation #${index + 1}`;
-            if (remDeleteBtn) remDeleteBtn.setAttribute('aria-label', `Delete recommendation #${index + 1}`);
-        });
-    };
-    
-    header.appendChild(label);
-    header.appendChild(deleteBtn);
-
-    const textareaWrapper = document.createElement('div');
-    textareaWrapper.className = 'textarea-wrapper';
-    
-    const textarea = document.createElement('textarea');
-    textarea.id = itemId;
-    textarea.className = 'recommendation-textarea';
-    textarea.rows = 4;
-    textarea.placeholder = 'Enter recommendation...';
-    textarea.value = text;
-
-    const rewordBtn = document.createElement('button');
-    rewordBtn.type = 'button';
-    rewordBtn.id = rewordBtnId;
-    rewordBtn.className = 'reword-button';
-    rewordBtn.textContent = 'Reword';
-    rewordBtn.setAttribute('aria-label', 'Reword recommendation');
-    if (!isAdminAuthenticated) {
-      rewordBtn.classList.add('hidden');
-    }
-    rewordBtn.onclick = () => handleRewordClick(rewordBtnId, itemId, `a recommendation for the pipeline assessment`);
-    
-    textareaWrapper.appendChild(textarea);
-    textareaWrapper.appendChild(rewordBtn);
-
-    item.appendChild(header);
-    item.appendChild(textareaWrapper);
-
-    container.appendChild(item);
-    enableTextareaAutoResize(itemId); // Enable auto-resize for the new textarea
-    recommendationCounter++;
-  };
+  saveApiKeyButton?.addEventListener('click', handleSaveApiKey);
   
-  document.getElementById('addRecommendationButton')?.addEventListener('click', () => addRecommendation());
+  // No AI client initialization on page load, must be done by admin.
+  updateApiKeyStatus();
 
-
-  // --- Calculation Logic ---
-  const handleCalculate = () => {
-    const resultsContainer = document.getElementById('resultsContainer');
-    if (!resultsContainer) return;
-    resultsContainer.innerHTML = '';
-    
-    const data = getFormData();
-    
-    // --- Input Validation ---
-    const requiredFields = [
-      // Heat Source
-      { id: 'maxTemp', name: 'Max Operating Temp', condition: data.isHeatSourceApplicable },
-      { id: 'pipelineDiameter', name: 'Heat Source Pipeline Nominal Diameter', condition: data.isHeatSourceApplicable },
-      { id: 'pipeMaterial', name: 'Heat Source Pipe Material', condition: data.isHeatSourceApplicable },
-      { id: 'wallThickness', name: 'Heat Source Pipe Wall Thickness', condition: data.isHeatSourceApplicable },
-      { id: 'pipeInsulationType', name: 'Heat Source Pipe Insulation Type', condition: data.isHeatSourceApplicable },
-      { id: 'heatSourceDepth', name: 'Heat Source Depth', condition: data.isHeatSourceApplicable },
-      // Gas Line
-      { id: 'gasPipelineDiameter', name: 'Gas Line Pipeline Nominal Diameter', condition: true },
-      { id: 'gasPipeMaterial', name: 'Gas Pipeline Material', condition: true },
-      { id: 'depthOfBurialGasLine', name: 'Gas Line Depth of Burial', condition: true },
-      // Soil
-      { id: 'soilType', name: 'Native Soil Type', condition: true },
-      { id: 'soilThermalConductivity', name: 'Native Soil Thermal Conductivity', condition: true },
-      { id: 'averageGroundTemperature', name: 'Average Ground Temperature', condition: true },
-    ];
-
-    if(data.gasLineOrientation === 'Parallel' && data.isHeatSourceApplicable) {
-      requiredFields.push({ id: 'parallelDistance', name: 'Parallel Centerline Distance', condition: true });
-    }
-
-    const getElVal = (id: string) => (document.getElementById(id) as HTMLInputElement | HTMLSelectElement)?.value;
-
-    const missingFields = requiredFields.filter(field => field.condition && !getElVal(field.id));
-    
-    if (missingFields.length > 0 || !data.isHeatSourceApplicable) {
-      const errorDiv = document.createElement('div');
-      errorDiv.className = 'calculation-error';
-      
-      const title = document.createElement('h3');
-      title.textContent = !data.isHeatSourceApplicable ? 'Calculation Skipped' : 'Missing Required Fields';
-      errorDiv.appendChild(title);
-      
-      if (!data.isHeatSourceApplicable) {
-        const message = document.createElement('p');
-        message.textContent = 'No applicable heat source was selected. Please select a heat source type on the "Heat Source Data" tab to run a calculation.';
-        errorDiv.appendChild(message);
-      } else {
-        const list = document.createElement('ul');
-        missingFields.forEach(field => {
-            const item = document.createElement('li');
-            item.textContent = field.name;
-            list.appendChild(item);
-        });
-        errorDiv.appendChild(list);
-      }
-
-      resultsContainer.appendChild(errorDiv);
-      resultsContainer.classList.remove('hidden');
-      lastCalculationResults = null;
-      return;
-    }
-    
-    // --- Calculation Function ---
-    const runHeatTransferCalc = (isWorstCase: boolean) => {
-      // --- 1. Get Inputs and Convert to Feet ---
-      const T_hs = parseFloat(data.maxTemp);
-      const T_surface = parseFloat(data.averageGroundTemperature);
-      const D_hs_nominal = getSelectedText('pipelineDiameter');
-      
-      // Heat Source Pipe Dimensions
-      const D_hs_outer_in = npsToOdMapping[D_hs_nominal];
-      const t_hs_wall_in = parseFloat(data.heatSourceWallThickness);
-      const D_hs_inner_in = D_hs_outer_in - (2 * t_hs_wall_in);
-      
-      // Insulation Dimensions
-      const t_ins_in = isWorstCase || data.insulationType === 'None' ? 0 : parseFloat(data.insulationThickness);
-      const D_ins_outer_in = D_hs_outer_in + (2 * t_ins_in);
-
-      // Bedding Dimensions
-      let D_bed_outer_in = D_ins_outer_in;
-      if (data.heatSourceBeddingType === 'sand') {
-          // Approximate the bedding as a circle with a diameter equal to the insulation OD plus average bedding thickness
-          const avgBedding = (
-              parseFloat(data.heatSourceBeddingTop || '0') +
-              parseFloat(data.heatSourceBeddingBottom || '0') +
-              parseFloat(data.heatSourceBeddingLeft || '0') +
-              parseFloat(data.heatSourceBeddingRight || '0')
-          ) / 4;
-          D_bed_outer_in += (2 * avgBedding);
-      }
-
-      // Convert all inches to feet for calculation
-      const D_hs_outer = D_hs_outer_in / 12;
-      const D_hs_inner = D_hs_inner_in / 12;
-      const D_ins_outer = D_ins_outer_in / 12;
-      const D_bed_outer = D_bed_outer_in / 12;
-
-      // --- 2. Get Thermal Conductivities (k values) ---
-      let k_pipe: number;
-      if (getVal('pipeMaterial') === 'other') {
-          k_pipe = parseFloat(getVal('customThermalConductivity'));
-      } else {
-          k_pipe = pipeMaterialData[getVal('pipeMaterial') as keyof typeof pipeMaterialData]?.thermalConductivity || 0;
-      }
-      
-      let k_ins: number;
-      const insulationVal = getVal('pipeInsulationType');
-      if (isWorstCase || insulationVal === 'none') {
-          k_ins = 0; // No insulation
-      } else if (insulationVal === 'other') {
-          k_ins = parseFloat(getVal('customInsulationThermalConductivity'));
-      } else {
-          const heatSourceType = getRadioVal('heatSourceType');
-          let insulationOptions: { [key: string]: { name: string; thermalConductivity: number } } = {};
-          if (heatSourceType === 'steam' || heatSourceType === 'superHeatedHotWater') {
-              insulationOptions = insulationData.steam;
-          } else if (heatSourceType === 'hotWater') {
-              insulationOptions = insulationData.hotWater;
-          } else if (heatSourceType === 'other') {
-              insulationOptions = { ...insulationData.steam, ...insulationData.hotWater };
-          }
-          k_ins = insulationOptions[insulationVal]?.thermalConductivity || 0;
-      }
-
-      let k_bed_hs: number;
-      if (data.heatSourceBeddingType === 'sand') {
-        k_bed_hs = data.heatSourceBeddingUseCustomK === 'yes' ? parseFloat(data.heatSourceBeddingCustomK) : 0.20;
-      } else {
-        k_bed_hs = 0; // No bedding layer
-      }
-
-      const k_soil = parseFloat(data.soilThermalConductivity);
-
-      // --- 3. Calculate Thermal Resistances (R values) ---
-      const R_pipe_wall = (k_pipe > 0) ? Math.log(D_hs_outer / D_hs_inner) / (2 * Math.PI * k_pipe) : 0;
-      const R_insulation = (k_ins > 0) ? Math.log(D_ins_outer / D_hs_outer) / (2 * Math.PI * k_ins) : 0;
-      const R_bedding_hs = (k_bed_hs > 0) ? Math.log(D_bed_outer / D_ins_outer) / (2 * Math.PI * k_bed_hs) : 0;
-      
-      const r_outer_for_soil = D_bed_outer > D_ins_outer ? D_bed_outer / 2 : D_ins_outer / 2;
-      const Z_hs = parseFloat(data.heatSourceDepth);
-      const R_soil_hs = (k_soil > 0) ? Math.log((2 * Z_hs - r_outer_for_soil) / r_outer_for_soil) / (2 * Math.PI * k_soil) : Infinity;
-
-      const R_total = R_pipe_wall + R_insulation + R_bedding_hs + R_soil_hs;
-      
-      // --- 4. Calculate Heat Loss (Q) ---
-      const Q = (T_hs - T_surface) / R_total;
-      
-      // --- 5. Calculate Gas Line Temperature (Homogeneous Soil) ---
-      const Z_gas = parseFloat(data.depthOfBurialGasLine);
-      let T_gas_line: number;
-      let separation_distance: number;
-      let orientation_formula_used: string;
-      const C = parseFloat(data.parallelDistance);
-      const lateral_offset_ft = parseFloat(data.lateralOffset || '0');
-      const angle_deg = parseFloat(data.crossingAngle || '90');
-      
-      if (data.gasLineOrientation === 'Crossing / Perpendicular') {
-          const D = Math.sqrt(Math.pow(Z_hs - Z_gas, 2) + Math.pow(lateral_offset_ft, 2));
-          separation_distance = D;
-          
-          const temp_rise_factor = Q / (2 * Math.PI * k_soil);
-
-          // Perpendicular Case Temp
-          const log_term_perp = Math.log((Z_hs + Z_gas) / D);
-          const T_gas_perp = T_surface + temp_rise_factor * log_term_perp;
-
-          // Parallel Case Temp
-          const d_image_para = Math.sqrt(Math.pow(Z_hs + Z_gas, 2) + Math.pow(lateral_offset_ft, 2));
-          const log_term_para = Math.log(d_image_para / D);
-          const T_gas_para = T_surface + temp_rise_factor * log_term_para;
-
-          if (angle_deg >= 90) {
-              T_gas_line = T_gas_perp;
-              orientation_formula_used = 'Perpendicular';
-          } else if (angle_deg <= 0) {
-              T_gas_line = T_gas_para;
-              orientation_formula_used = 'Parallel';
-          } else {
-              const angle_rad = angle_deg * Math.PI / 180;
-              const w = Math.sin(angle_rad); // Weight: 1 for 90deg, 0 for 0deg
-              T_gas_line = w * T_gas_perp + (1 - w) * T_gas_para;
-              orientation_formula_used = `Blended (Angle: ${angle_deg}°)`;
-          }
-
-      } else { // Parallel
-          const d_source = Math.sqrt(Math.pow(Z_hs - Z_gas, 2) + Math.pow(C, 2));
-          separation_distance = d_source;
-          const d_image = Math.sqrt(Math.pow(Z_hs + Z_gas, 2) + Math.pow(C, 2));
-          T_gas_line = T_surface + (Q / (2 * Math.PI * k_soil)) * Math.log(d_image / d_source);
-          orientation_formula_used = 'Parallel';
-      }
-      
-      // --- 6. Calculate Ground Surface Temperature (1 inch below grade) ---
-      const y_surface = 1 / 12; // 1 inch in feet
-      const T_ground_surface_above_hs = T_surface + (Q / (2 * Math.PI * k_soil)) * Math.log((y_surface + Z_hs) / (Z_hs - y_surface));
-
-      // --- 7. Calculate Gas Line Temperature Correction for Bedding ---
-      let T_gas_line_layered = NaN;
-      let r_g = NaN, r_b = NaN, k_bed_gas = NaN;
-
-      if (data.gasLineBeddingType === 'sand') {
-          k_bed_gas = data.gasBeddingUseCustomK === 'yes' ? parseFloat(data.gasBeddingCustomK) : 0.20;
-          
-          const D_gas_nominal = getSelectedText('gasPipelineDiameter');
-          const D_gas_outer_in = getGasPipeOd(D_gas_nominal, data.gasPipeSizingStandard);
-          r_g = (D_gas_outer_in / 12) / 2; // gas pipe outer radius in feet
-      
-          // Average bedding thickness in feet, default to 6 inches (0.5 ft total) if inputs are empty
-          const avg_bedding_thickness_in = (
-              parseFloat(data.gasBeddingTop || '6') +
-              parseFloat(data.gasBeddingBottom || '6') +
-              parseFloat(data.gasBeddingLeft || '6') +
-              parseFloat(data.gasBeddingRight || '6')
-          ) / 4;
-          const bedding_thickness_ft = avg_bedding_thickness_in / 12;
-      
-          r_b = r_g + bedding_thickness_ft;
-      
-          if (k_soil > 0 && k_bed_gas > 0 && r_b > r_g) {
-              const delta_T_bedding = (Q / (2 * Math.PI)) * Math.log(r_b / r_g) * ((1 / k_bed_gas) - (1 / k_soil));
-              T_gas_line_layered = T_gas_line + delta_T_bedding;
-          }
-      }
-      
-      return {
-          R_pipe_wall, R_insulation, R_bedding_hs, R_soil_hs, R_total, Q,
-          T_gas_line, T_ground_surface_above_hs, k_ins, t_ins_in,
-          T_gas_line_layered,
-          separation_distance,
-          orientation_formula_used,
-          inputs: {
-              T_hs, T_surface, D_hs_outer, D_hs_inner, D_ins_outer, D_bed_outer,
-              k_pipe, k_ins, k_bed_hs, k_soil, Z_hs, Z_gas, C, lateral_offset_ft,
-              angle_deg, r_g, r_b, k_bed_gas, r_soil_i: r_outer_for_soil
-          }
-      };
-    };
-
-    // --- Execute Calculations ---
-    const asIsResults = runHeatTransferCalc(false);
-    let worstCaseResults = null;
-    if (asIsResults.k_ins > 0) { // Only run worst case if there's insulation to begin with
-      worstCaseResults = runHeatTransferCalc(true);
-    }
-    
-    lastCalculationResults = { asIs: asIsResults, worstCase: worstCaseResults };
-
-    // --- Display Results ---
-    const createResultGroup = (title: string, results: any) => {
-      const group = document.createElement('div');
-      group.className = 'result-group';
-      const heading = document.createElement('h3');
-      heading.textContent = title;
-      group.appendChild(heading);
-      
-      const insulationSummary = document.createElement('div');
-      insulationSummary.className = 'insulation-summary';
-      insulationSummary.innerHTML = `
-        <h4>Insulation Details:</h4>
-        <div class="summary-fact">
-          <span>Insulation Type:</span>
-          <span>${results.k_ins > 0 ? getSelectedText('pipeInsulationType').replace(/ \(.*\)/, '') : 'None'}</span>
-        </div>
-        <div class="summary-fact">
-          <span>Insulation Thickness:</span>
-          <span>${results.t_ins_in.toFixed(2)} inches</span>
-        </div>
-        <div class="summary-fact">
-          <span>Thermal Conductivity (k<sub>ins</sub>):</span>
-          <span>${results.k_ins > 0 ? results.k_ins.toFixed(4) : 'N/A'} BTU/hr·ft·°F</span>
-        </div>
-      `;
-      group.appendChild(insulationSummary);
-
-      const walkthrough = document.createElement('div');
-      walkthrough.innerHTML = `
-        <h4 style="margin-top: 1.5rem;">Calculation Details:</h4>
-        <div class="result-item"><span class="result-label">Pipe Wall Resistance (R<sub>pipe</sub>)</span> <span class="result-value">${results.R_pipe_wall.toFixed(4)}</span></div>
-        <div class="result-item"><span class="result-label">Insulation Resistance (R<sub>ins</sub>)</span> <span class="result-value">${results.R_insulation.toFixed(4)}</span></div>
-        <div class="result-item"><span class="result-label">Bedding Resistance (R<sub>bed</sub>)</span> <span class="result-value">${results.R_bedding_hs.toFixed(4)}</span></div>
-        <div class="result-item"><span class="result-label">Soil Resistance (R<sub>soil</sub>)</span> <span class="result-value">${results.R_soil_hs.toFixed(4)}</span></div>
-        <div class="result-item" style="font-weight: bold;"><span class="result-label">Total Thermal Resistance (R<sub>total</sub>)</span> <span class="result-value">${results.R_total.toFixed(4)}</span></div>
-        <div class="result-item"><span class="result-label">Heat Loss per Foot (Q)</span> <span class="result-value">${results.Q.toFixed(2)} BTU/hr·ft</span></div>
-        <div class="result-item"><span class="result-label">True Centerline Separation (D)</span> <span class="result-value">${results.separation_distance.toFixed(2)} ft</span></div>
-        <div class="result-item"><span class="result-label">Orientation Formula Used</span> <span class="result-value">${results.orientation_formula_used}</span></div>
-      `;
-      group.appendChild(walkthrough);
-
-      const finalTemps = document.createElement('div');
-      finalTemps.innerHTML = `
-        <h4 style="margin-top: 1.5rem;">Final Calculated Temperatures:</h4>
-        <div class="result-item"><span class="result-label">Ground Surface Temp (1" deep)</span> <span class="result-value">${results.T_ground_surface_above_hs.toFixed(1)} °F</span></div>
-        <div class="result-item"><span class="result-label">Gas Line Temp (Homogeneous Soil)</span> <span class="result-value">${results.T_gas_line.toFixed(1)} °F</span></div>
-        ${!isNaN(results.T_gas_line_layered) ? 
-            `<div class="result-item" style="background-color: #e6f3ff; font-weight: bold;"><span class="result-label">Gas Line Temp (with Bedding)</span> <span class="result-value" style="font-size: 1.5rem;">${results.T_gas_line_layered.toFixed(1)} °F</span></div>` :
-            `<div class="result-item" style="background-color: #e6f3ff; font-weight: bold;"><span class="result-label">Gas Line Temperature</span> <span class="result-value" style="font-size: 1.5rem;">${results.T_gas_line.toFixed(1)} °F</span></div>`
-        }
-      `;
-      group.appendChild(finalTemps);
-      
-      // Add Warning
-      let warningMessage = '';
-      const isPlastic = ['hdpe', 'mdpe', 'aldyl'].includes(data.gasPipeMaterialValue);
-      const isSteel = ['coated-steel-protected', 'coated-steel-unprotected', 'bare-steel'].includes(data.gasPipeMaterialValue);
-      const finalGasTemp = !isNaN(results.T_gas_line_layered) ? results.T_gas_line_layered : results.T_gas_line;
-
-
-      if (isPlastic && finalGasTemp >= 70) {
-        warningMessage = `<strong>WARNING:</strong> The calculated gas line temperature of <strong>${finalGasTemp.toFixed(1)}°F</strong> meets or exceeds the maximum allowable operational temperature of <strong>70°F</strong> for plastic pipe (e.g., HDPE, MDPE, Aldyl-A). A separate, detailed evaluation should be conducted to assess the impact on MAOP and long-term pipe integrity.`;
-      } else if (isSteel && finalGasTemp >= 150) {
-        warningMessage = `<strong>WARNING:</strong> The calculated gas line temperature of <strong>${finalGasTemp.toFixed(1)}°F</strong> meets or exceeds the maximum allowable temperature of <strong>150°F</strong> for steel pipe coatings. This can damage the adhesive, increasing corrosion risk. A separate, detailed evaluation of the coating and pipeline integrity should be conducted.`;
-      }
-
-      if (warningMessage) {
-        const warningDiv = document.createElement('div');
-        warningDiv.className = 'calculation-warning';
-        warningDiv.innerHTML = warningMessage;
-        group.appendChild(warningDiv);
-      }
-
-      return group;
-    };
-
-    resultsContainer.appendChild(createResultGroup("As-Is Scenario", asIsResults));
-    
-    if (worstCaseResults) {
-      const divider = document.createElement('hr');
-      divider.className = 'results-divider';
-      resultsContainer.appendChild(divider);
-      resultsContainer.appendChild(createResultGroup("Worst-Case Scenario (Insulation Failure)", worstCaseResults));
-    }
-    
-    resultsContainer.classList.remove('hidden');
-    document.getElementById('calculateButton')?.scrollIntoView({ behavior: 'smooth' });
-  };
-  
-  document.getElementById('calculateButton')?.addEventListener('click', handleCalculate);
-
-  // --- LaTeX Report Generation ---
-  const copyLatexButton = document.getElementById('copyLatexButton');
-  const latexContainer = document.getElementById('latexContainer');
-  const latexOutput = document.getElementById('latexReportOutput');
-  const latexPlaceholder = document.getElementById('latexPlaceholder');
-
-  const showLatexReport = () => {
-    if (!lastCalculationResults || !latexContainer || !latexOutput || !latexPlaceholder) return;
-    const data = getFormData();
-    const latexCode = generateLatexReport(data, lastCalculationResults.asIs, lastCalculationResults.worstCase);
-    latexOutput.textContent = latexCode;
-    latexPlaceholder.classList.add('hidden');
-    latexContainer.classList.remove('hidden');
-  };
-
-  copyLatexButton?.addEventListener('click', () => {
-    if (lastCalculationResults) {
-      showLatexReport();
-      if(latexOutput?.textContent) {
-        navigator.clipboard.writeText(latexOutput.textContent).then(() => {
-          copyLatexButton.textContent = 'Copied!';
-          setTimeout(() => { copyLatexButton.textContent = 'Copy Report'; }, 2000);
-        }).catch(err => {
-          console.error('Failed to copy LaTeX: ', err);
-        });
-      }
-    } else {
-      alert('Please run a calculation first on the "Calculation" tab.');
-    }
-  });
-
-  // --- Save/Load Assessment Logic ---
-  const saveAssessment = () => {
-    const data = {
-      formData: getFormData(),
-      photos: getPhotosData(),
-      recommendations: Array.from(document.querySelectorAll<HTMLTextAreaElement>('#recommendationsContainer .recommendation-textarea')).map(textarea => textarea.value),
-      questionnaire: {
-        currentQuestionIndex,
-        answers: questionAnswers,
-      },
-      lastCalculationResults,
-      lastReport: document.getElementById('generated-report-container')?.innerHTML || '',
-      isAuthenticated: isAdminAuthenticated,
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `thermal-assessment-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-  
-  const loadAssessment = (e: Event) => {
-    const file = (e.target as HTMLInputElement).files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const data = JSON.parse(event.target?.result as string);
-        const { formData, photos, recommendations, questionnaire, lastCalculationResults: loadedCalcResults, lastReport, isAuthenticated } = data;
-        
-        // Reset form to default state
-        (document.querySelector('.project-info-form') as HTMLFormElement).reset();
-
-        // Helper to set radio button value. It handles cases where the value is saved, and cases where the label is saved.
-        const setRadioValue = (groupName: string, value: any, isLabel = false) => {
-          if (value === null || typeof value === 'undefined') return;
-          const radios = document.querySelectorAll<HTMLInputElement>(`input[name="${groupName}"]`);
-          for (const radio of radios) {
-            let match = false;
-            if (isLabel) {
-              const label = document.querySelector<HTMLLabelElement>(`label[for="${radio.id}"]`);
-              if (label && label.textContent?.trim() === value) {
-                match = true;
-              }
-            } else {
-              if (radio.value === value) {
-                match = true;
-              }
-            }
-            if (match) {
-              radio.checked = true;
-              // Dispatch change event to trigger dependent UI updates
-              radio.dispatchEvent(new Event('change', { bubbles: true }));
-              return;
-            }
-          }
-        };
-        
-        // --- FIX: Handle heatSourceType before the main loop to ensure dependent controls are populated. ---
-        if (formData.heatSourceType) {
-            const value = formData.heatSourceType;
-            const radios = document.querySelectorAll<HTMLInputElement>('input[name="heatSourceType"]');
-            let found = false;
-            for (const radio of radios) {
-                const label = document.querySelector<HTMLLabelElement>(`label[for="${radio.id}"]`);
-                if (label && label.textContent?.trim() === value) {
-                    radio.checked = true;
-                    found = true;
-                    radio.dispatchEvent(new Event('change', { bubbles: true }));
-                    break;
-                }
-            }
-            if (!found && String(value).startsWith('Other:')) {
-                const otherRadio = document.querySelector<HTMLInputElement>('input[name="heatSourceType"][value="other"]');
-                if (otherRadio) {
-                    otherRadio.checked = true;
-                    (getEl('customHeatSourceType') as HTMLInputElement).value = String(value).replace('Other: ', '').replace('not specified', '').trim();
-                    otherRadio.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-            }
-        }
-        // --- END FIX ---
-
-        // --- FIX: Robustly load Heat Source Insulation Type from multiple legacy and current keys ---
-        const insulationSelect = getEl('pipeInsulationType') as HTMLSelectElement;
-        if (insulationSelect) {
-            const normalizeAndMapInsulation = (inputValue: unknown): string => {
-                if (!inputValue) return '';
-                // Normalize by trimming, lowercasing, and replacing spaces or underscores with hyphens
-                const value = String(inputValue).trim().toLowerCase().replace(/_/g, '-').replace(/ /g, '-');
-        
-                // Direct match for stable codes
-                if (['calcium-silicate', 'mineral-wool', 'fiberglass', 'cellular-glass', 'none', 'other'].includes(value)) {
-                    return value;
-                }
-        
-                // Legacy label mapping
-                if (value.includes('calcium-silicate')) return 'calcium-silicate';
-                if (value.includes('mineral-wool') || value.includes('mineralwool')) return 'mineral-wool';
-                if (value.includes('fiberglass')) return 'fiberglass';
-                if (value.includes('cellular-glass') || value.includes('foam-glass')) return 'cellular-glass';
-                if (value === 'none') return 'none';
-                if (value.startsWith('other')) return 'other';
-        
-                return ''; // Return empty string if no match
-            };
-        
-            // Prioritize the canonical key, but fall back to the legacy key
-            const valueToParse = formData.heatSourcePipeInsulationType || formData.insulationType;
-            const mappedValue = normalizeAndMapInsulation(valueToParse);
-        
-            // Check if the derived value is a valid option in the (dynamically populated) select
-            const optionExists = Array.from(insulationSelect.options).some(o => o.value === mappedValue);
-            insulationSelect.value = optionExists ? mappedValue : '';
-        
-            // If 'other' is selected, populate the custom text field from the legacy key
-            if (insulationSelect.value === 'other' && typeof formData.insulationType === 'string' && formData.insulationType.startsWith('Other:')) {
-                const customInput = getEl('customPipeInsulation') as HTMLInputElement;
-                if (customInput) {
-                    customInput.value = formData.insulationType.replace('Other: ', '').replace('not specified', '').trim();
-                }
-            }
-        
-            // Restore the adjacent radio group for "Unknown/Actual/Assumed"
-            if (formData.insulationTypeType) {
-                setRadioValue('insulationTypeType', formData.insulationTypeType, true);
-            }
-        
-            // Trigger change to update UI dependencies (e.g., show/hide custom fields)
-            insulationSelect.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-        // --- END FIX ---
-
-        // Load form data using a more robust approach
-        for (const key in formData) {
-          if (!Object.prototype.hasOwnProperty.call(formData, key)) continue;
-          const value = formData[key as keyof typeof formData];
-          
-          // --- Special Handlers for complex fields ---
-
-          // Radio buttons saved by LABEL text
-          if (key === 'heatSourceType') {
-            // This is now handled before the loop, so we skip it here.
-            continue;
-          }
-          if (['isRegistered811', 'registered811Confirmation', 'tempType', 'pressureType', 'ageType', 'diameterType', 'materialType', 'wallThicknessType', 'connectionTypesType', 'insulationThicknessType', 'depthType', 'gasLineOrientation', 'waterInfiltration'].includes(key)) {
-            setRadioValue(key, value, true);
-            continue;
-          }
-          if (key === 'systemDutyCycleType') { setRadioValue('dutyCycleType', value, true); continue; }
-          if (key === 'pipeCasingInfoType') { setRadioValue('casingInfoType', value, true); continue; }
-          
-          // Radio buttons saved by VALUE
-          if (['gasPipeSizingStandard', 'heatSourceBeddingType', 'heatSourceBeddingUseCustomK', 'gasLineBeddingType', 'gasBeddingUseCustomK'].includes(key)) {
-            setRadioValue(key, value, false);
-            continue;
-          }
-
-          // Dependent Selects
-          if (key === 'heatSourceWallThickness') {
-            const select = getEl('wallThickness') as HTMLSelectElement;
-            (getEl('pipelineDiameter') as HTMLSelectElement).value = formData.pipelineDiameter;
-            getEl('pipelineDiameter')?.dispatchEvent(new Event('change'));
-            if (select) {
-              const option = Array.from(select.options).find(o => o.value === String(value));
-              if (option) {
-                select.value = value as string;
-              } else if (value && value !== 'N/A') {
-                select.value = 'custom';
-                (getEl('customWallThickness') as HTMLInputElement).value = value as string;
-              }
-              select.dispatchEvent(new Event('change'));
-            }
-            continue;
-          }
-           if (key === 'gasPipeWallThickness') {
-            const select = getEl('gasWallThickness') as HTMLSelectElement;
-            (getEl('gasPipelineDiameter') as HTMLSelectElement).value = formData.gasPipelineDiameter;
-            getEl('gasPipelineDiameter')?.dispatchEvent(new Event('change'));
-            if (select) {
-                const option = Array.from(select.options).find(o => o.value === String(value));
-                if (option) {
-                    select.value = value as string;
-                } else if (value && value !== 'N/A') {
-                    select.value = 'custom';
-                    (getEl('customGasWallThickness') as HTMLInputElement).value = value as string;
-                }
-                select.dispatchEvent(new Event('change'));
-            }
-            continue;
-          }
-
-          // Selects where text is saved
-          if (key === 'heatSourcePipeMaterial') {
-            const select = getEl('pipeMaterial') as HTMLSelectElement;
-            if (String(value).startsWith('Other:')) {
-              select.value = 'other';
-              (getEl('customPipeMaterial') as HTMLInputElement).value = String(value).replace('Other: ', '').trim();
-            } else {
-              const option = Array.from(select.options).find(o => o.text.replace(/ \(.*\)/, '') === value);
-              if (option) select.value = option.value;
-            }
-            select.dispatchEvent(new Event('change'));
-            continue;
-          }
-
-          // Skip insulation keys as they are now handled by a dedicated block
-          if (['heatSourcePipeInsulationType', 'pipeInsulationTypeValue', 'insulationType', 'insulationTypeType'].includes(key)) {
-            continue;
-          }
-
-          // Selects where value is saved
-          if (key === 'gasPipeMaterialValue') {
-            const select = getEl('gasPipeMaterial') as HTMLSelectElement;
-            if (select && value) {
-              select.value = value as string;
-              if (value === 'other' && typeof formData.gasPipeMaterial === 'string' && formData.gasPipeMaterial.startsWith('Other:')) {
-                (getEl('customGasPipeMaterial') as HTMLInputElement).value = formData.gasPipeMaterial.replace('Other: ', '').trim();
-              }
-              select.dispatchEvent(new Event('change'));
-            }
-            continue;
-          }
-
-          // Other complex fields
-          if (key === 'evaluatorNames' && Array.isArray(value)) {
-            const select = getEl('numEvaluators') as HTMLSelectElement;
-            select.value = String(value.length);
-            updateEvaluatorInputs();
-            const inputs = document.querySelectorAll<HTMLInputElement>('.evaluator-name-input');
-            value.forEach((name, index) => {
-              if (inputs[index]) inputs[index].value = name;
-            });
-            continue;
-          }
-          if (key === 'connectionsValue' && Array.isArray(value)) {
-            const select = getEl('connectionTypes') as HTMLSelectElement;
-            Array.from(select.options).forEach(opt => {
-              const isOther = opt.value === 'other' && value.some(v => typeof v === 'string' && v.startsWith('Other:'));
-              opt.selected = value.includes(opt.text) || isOther;
-            });
-            const otherValue = value.find(v => typeof v === 'string' && v.startsWith('Other:'));
-            if (otherValue) {
-              (getEl('customConnectionTypes') as HTMLTextAreaElement).value = (otherValue as string).replace('Other: ', '').replace('not specified', '').trim();
-            }
-            handleConnectionTypesChange(); // This function updates the UI
-            continue;
-          }
-          if (key === 'parallelCoordinates' && Array.isArray(value)) {
-              value.forEach((coord, index) => {
-                  const latInput = document.getElementById(`lat-parallel-${index}`) as HTMLInputElement;
-                  const lngInput = document.getElementById(`lng-parallel-${index}`) as HTMLInputElement;
-                  if (latInput) latInput.value = coord.lat;
-                  if (lngInput) lngInput.value = coord.lng;
-              });
-              continue;
-          }
-          
-          // --- Fallback for simple fields ---
-          const el = getEl(key);
-          if (el && 'value' in el) {
-            (el as HTMLInputElement).value = value as string;
-          }
-        }
-
-        // Final dispatch of events to ensure UI consistency
-        document.querySelectorAll('input, select, textarea').forEach(el => {
-          if ((el as HTMLElement).id) {
-            el.dispatchEvent(new Event('change', { bubbles: true }));
-            el.dispatchEvent(new Event('input', { bubbles: true }));
-          }
-        });
-
-
-        // Load photos
-        const photoContainer = getEl('image-preview-container');
-        if (photoContainer) photoContainer.innerHTML = '';
-        if (photos && Array.isArray(photos)) {
-            photos.forEach(photo => addPhotoPreview(photo.src, photo.description));
-        }
-
-        // Load recommendations
-        const recContainer = getEl('recommendationsContainer');
-        if (recContainer) recContainer.innerHTML = '';
-        if (recommendations && Array.isArray(recommendations)) {
-            recommendations.forEach(rec => addRecommendation(rec));
-        }
-        
-        // Load questionnaire state
-        if(questionnaire) {
-          currentQuestionIndex = questionnaire.currentQuestionIndex ?? -1;
-          questionAnswers = questionnaire.answers ?? [];
-        }
-        
-        // Load calculation results to preserve report generation state
-        lastCalculationResults = loadedCalcResults || null;
-        
-        // Load Admin state
-        if (isAuthenticated) {
-          (getEl('adminPasscode') as HTMLInputElement).value = '0665'; // Dummy value to pass login
-          handleAdminExecute();
-        } else {
-          handleAdminLogout();
-        }
-        
-        // Load generated report
-        const reportContainer = getEl('generated-report-container');
-        if (reportContainer && lastReport) {
-          reportContainer.innerHTML = lastReport;
-          if (lastReport.trim() !== '') {
-            reportContainer.classList.remove('hidden');
-            handleFinalReportTabClick(); // This will add the 'Generate New' button
-          }
-        }
-
-        alert('Assessment loaded successfully.');
-
-      } catch (err) {
-        console.error("Failed to load assessment file:", err);
-        alert("Error: Could not read the assessment file. It may be corrupted or in an incorrect format.");
-      }
-    };
-    reader.readAsText(file);
-  };
-  
-  document.getElementById('saveButton')?.addEventListener('click', saveAssessment);
-  document.getElementById('loadButton')?.addEventListener('click', () => document.getElementById('loadFile')?.click());
-  document.getElementById('loadFile')?.addEventListener('change', loadAssessment);
-
-
-  // Initial setup calls
+  // Initial UI setup calls
   updateEvaluatorInputs();
   toggleConditionalFields();
-  handleGasLineOrientationChange();
   handleGasOperatorNameChange();
   handleGasPipeMaterialChange();
   handleGasCoatingTypeChange();
   handleGasSdrChange();
+  handleGasLineOrientationChange();
+  updateParallelCoordinateInputs();
   handleConnectionTypesChange();
   handleHeatLossSourceChange();
   handleInsulationConditionSourceChange();
-  setupRewordButtons();
-  setupQuestionnaireReword();
-  setupImageUploader();
-  document.getElementById('addRecommendationButton')?.addEventListener('click', () => addRecommendation());
 
-  // Set up final report questionnaire buttons
-  document.getElementById('next-question-btn')?.addEventListener('click', handleNextQuestion);
-  document.getElementById('prev-question-btn')?.addEventListener('click', handlePrevQuestion);
-
-  // Set initial active tab
-  document.querySelector('.tab-button[data-tab="about"]')?.dispatchEvent(new Event('click'));
+  // Activate the first tab by default
+  if (tabButtons.length > 0 && tabPanels.length > 0) {
+    tabButtons[0].classList.add('active');
+    tabPanels[0].classList.add('active');
+  }
+  updateAssessmentFormView(); // Populate the printable form view initially.
 });
